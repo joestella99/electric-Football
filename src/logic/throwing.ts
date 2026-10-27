@@ -12,11 +12,11 @@ export const RECEIVERS: { id: ReceiverId; label: string; number: string; role: s
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(v, b));
 export const passPlay = (play: PlayId) => ['quick', 'sideline', 'deep', 'screen'].includes(play);
-export const pressureLimit = (defense: GameState['defense']) => defense === 'BLITZ' ? 3.25 : defense === 'LOADED BOX' ? 4.1 : 5.15;
+export const pressureLimit = (defense: GameState['defense']) => defense === 'BLITZ' ? 5.8 : defense === 'LOADED BOX' ? 7.0 : 8.2;
 const start: Record<ReceiverId, Point> = { 7: [-22,-2.1], 8: [22,-2.1], 9: [13.3,-1], 10: [-14.4,-3.2], 1: [3.3,-9] };
 
 export function receiverPoint(id: ReceiverId, play: PlayId, yard: number, t: number): Point {
-  const time = clamp(t,0,7);
+  const time = clamp(t,0,9.5);
   const [sx, sz] = start[id];
   const spd = id === 1 ? 5 : id === 9 ? 6.5 : 8.1;
   const travel = time * spd;
