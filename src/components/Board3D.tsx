@@ -26,11 +26,11 @@ function CameraRig({yard,view,live,elapsed}:{yard:number;view:View;live:Live|nul
   useFrame((_,dt)=>{
     const aspect=size.width/Math.max(1,size.height);
     const mobile=aspect<1.12;
-    const focus=clip(yard+ (live?12 + Math.min(9,elapsed.current*2):12),23,84);
+    const focus=clip(yard+12+(live?Math.min(29,elapsed.current*3.7):0),23,85);
     target.current.set(0,0,focus);
     const pose = view==='coach' ?
-      new THREE.Vector3(0,mobile?88:76,focus+.01) :
-      new THREE.Vector3(mobile?0:7,mobile?65:49,focus-(mobile?44:36));
+      new THREE.Vector3(0,(mobile?88:76)+(live?elapsed.current*1.4:0),focus+.01) :
+      new THREE.Vector3(mobile?0:7,(mobile?65:49)+(live?Math.min(18,elapsed.current*2.4):0),focus-(mobile?44:36)-(live?Math.min(14,elapsed.current*1.8):0));
     const k=1-Math.exp(-dt*3.5);
     camera.position.lerp(pose,k);
     camera.lookAt(target.current);
@@ -150,14 +150,14 @@ function Player({member,yard,defense,live,motion,elapsed,progress,selected}:{mem
     <Figure x={0} z={0} side={member.side} number={member.num} role={member.role} living={!!live} select={!!live&&member.id===selected}/>
   </group>;
 }
-function Routes({yard,play}:{yard:number;play:PlayId}){
+function Routes({yard,play,receiver}:{yard:number;play:PlayId;receiver:ReceiverId}){
   if(!passPlay(play))return null;
   return <group>{RECEIVERS.map(r=>{
     const points=Array.from({length:18},(_,i)=>{
       const [x,z]=receiverPoint(r.id,play,yard,i*.34);
       return [x,.61,z] as [number,number,number];
     });
-    return <Line key={r.id} points={points} color={r.id===7?'#ffe09a':'#b7dcac'} opacity={.75} transparent lineWidth={1.5} dashed dashSize={.7} gapSize={.45}/>;
+    return <Line key={r.id} points={points} color={r.id===receiver?'#ffe09a':'#b7dcac'} opacity={r.id===receiver?.95:.36} transparent lineWidth={1.5} dashed dashSize={.7} gapSize={.45}/>;
   })}</group>;
 }
 function Clock({live,motion,defense,elapsed,progress,onTick,onSack,onDone}:{live:Live|null;motion:Motion|null;defense:Defense;elapsed:React.RefObject<number>;progress:React.RefObject<number>;onTick:(n:number)=>void;onSack:(n:number)=>void;onDone:()=>void}){
@@ -230,7 +230,7 @@ function Scene(props:Props){
     <CameraRig yard={displayYard} view={view} live={live} elapsed={elapsed}/>
     <WoodCabinet/>
     <Field yard={displayYard} toGo={toGo}/>
-    {!live&&!motion&&<Routes yard={displayYard} play={play}/>}
+    {!motion&&<Routes yard={displayYard} play={play} receiver={receiver}/>}
     <Clock live={live} motion={motion} defense={defense} elapsed={elapsed} progress={progress} onTick={onTick} onSack={onSack} onDone={onDone}/>
     {members.map(m=><Player key={m.id} member={m} yard={displayYard} defense={defense} live={live} motion={motion} elapsed={elapsed} progress={progress} selected={receiver}/>)}
     <Ball yard={displayYard} motion={motion} progress={progress}/>
