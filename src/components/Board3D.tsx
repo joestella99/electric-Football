@@ -1,277 +1,254 @@
-import { useEffect, useRef } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { Line, OrbitControls, Text } from '@react-three/drei';
+import { useEffect, useMemo, useRef } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Html, Line, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import type { Defense, PlayId, Result } from '../logic/drill';
-import { receiverPoint, coveragePoint, passPlay, pressureLimit, type Point, type ReceiverId } from '../logic/throwing';
+import { coveragePoint, passPlay, pressureLimit, receiverPoint, RECEIVERS, type Point, type ReceiverId } from '../logic/throwing';
 
-export type Motion = { id: number; result: Result; startYard: number; aim?: Point; releaseAt?: number };
 export type Live = { id: number; play: PlayId };
-type Props = { yard: number; defense: Defense; selectedPlay: PlayId; view: 'angled' | 'top'; motion: Motion | null; live: Live | null; aim: Point; selectedReceiver: ReceiverId; onAim: (p: Point) => void; onThrow: (p: Point) => void; onTick: (s: number) => void; onSack: (s: number) => void; onDone: () => void };
-
-type Figure = { id: number; side: 'offense' | 'defense'; position: [number, number]; number: number; role: string };
-const GOLD = '#f9ca66', OFF = '#ead29e', DEF = '#c74c43';
-const formation = (yard: number, defense: Defense): Figure[] => {
-  const o: Figure[] = [
-    { id: 0, role: 'QB', number: 12, position: [0, yard - 5], side: 'offense' },
-    { id: 1, role: 'RB', number: 22, position: [3.3, yard - 9], side: 'offense' },
-    ...[-9,-4.5,0,4.5,9].map((x,i) => ({ id: 2+i, role: 'OL', number: 60+i, position: [x, yard-.9] as [number,number], side: 'offense' as const })),
-    { id: 7, role: 'WR', number: 81, position: [-22, yard - 2.1], side: 'offense' },
-    { id: 8, role: 'WR', number: 14, position: [22, yard - 2.1], side: 'offense' },
-    { id: 9, role: 'TE', number: 87, position: [13.3, yard - 1], side: 'offense' },
-    { id: 10, role: 'SLOT', number: 11, position: [-14.4, yard - 3.2], side: 'offense' },
-  ];
-  const front = defense === 'BLITZ' ? 1.8 : 2.3;
-  const second = defense === 'BLITZ' ? 4.5 : defense === 'LOADED BOX' ? 5.5 : 10;
-  const deep = defense === 'SOFT ZONE' ? 23 : 16;
-  const d: Figure[] = [
-    ...[-8,-2.5,3.5,9].map((x,i)=>({id:11+i,role:'DL',number:90+i,position:[x,yard+front] as [number,number],side:'defense' as const})),
-    ...[-12,0,12].map((x,i)=>({id:15+i,role:'LB',number:50+i,position:[x,yard+second] as [number,number],side:'defense' as const})),
-    ...[-22,-8,8,22].map((x,i)=>({id:18+i,role:'DB',number:20+i,position:[x,yard+deep+(i%2)*3] as [number,number],side:'defense' as const})),
-  ];
-  return [...o,...d];
+export type Motion = { id: number; result: Result; startYard: number; aim?: Point; releaseAt?: number };
+type View = 'sideline' | 'coach';
+type Props = {
+  yard: number; toGo: number; defense: Defense; play: PlayId; view: View;
+  live: Live | null; motion: Motion | null; aim: Point; receiver: ReceiverId;
+  onAim: (point: Point) => void; onThrow: (point: Point, id?: ReceiverId) => void;
+  onSelect: (id: ReceiverId) => void; onTick: (seconds: number) => void;
+  onSack: (seconds: number) => void; onDone: () => void;
 };
-const clamp = (n:number, min:number,max:number)=> Math.max(min,Math.min(max,n));
+const clip = (v: number,lo:number,hi:number)=>Math.max(lo,Math.min(hi,v));
+const pY = .44;
+const O = '#f5d58e', D = '#d9634b';
+const ballGeometry = new THREE.SphereGeometry(.58,10,8);
 
-function Frame() {
+function CameraRig({yard,view,live,elapsed}:{yard:number;view:View;live:Live|null;elapsed:React.RefObject<number>}) {
+  const camera=useThree(s=>s.camera);
+  const size=useThree(s=>s.size);
+  const target=useRef(new THREE.Vector3());
+  useFrame((_,dt)=>{
+    const aspect=size.width/Math.max(1,size.height);
+    const mobile=aspect<1.12;
+    const focus=clip(yard+ (live?12 + Math.min(9,elapsed.current*2):12),23,84);
+    target.current.set(0,0,focus);
+    const pose = view==='coach' ?
+      new THREE.Vector3(0,mobile?88:76,focus+.01) :
+      new THREE.Vector3(mobile?0:7,mobile?65:49,focus-(mobile?44:36));
+    const k=1-Math.exp(-dt*3.5);
+    camera.position.lerp(pose,k);
+    camera.lookAt(target.current);
+    if(camera instanceof THREE.PerspectiveCamera){
+      const fov=mobile?53:43;
+      if(camera.fov!==fov){camera.fov=fov;camera.updateProjectionMatrix();}
+    }
+  });
+  return null;
+}
+function WoodCabinet(){
   return <group>
-    <mesh position={[0,-1.45,50]} receiveShadow>
-      <boxGeometry args={[61,2.4,110]}/><meshStandardMaterial color="#a12b22" metalness={.37} roughness={.43}/>
+    <mesh position={[0,-1.2,50]} receiveShadow>
+      <boxGeometry args={[62,2.4,112]}/><meshStandardMaterial color="#963e31" roughness={.44} metalness={.18}/>
     </mesh>
-    <mesh position={[0,-.12,50]}><boxGeometry args={[55,.45,103]}/><meshStandardMaterial color="#d6b06f" roughness={.65}/></mesh>
-    {[-1,1].map(side=><mesh key={side} position={[side*28.1,.5,50]}>
-      <boxGeometry args={[3,1.5,110]}/><meshStandardMaterial color="#c44836" roughness={.38} metalness={.28}/>
-    </mesh>)}
-    {[0,100].map(z=><mesh key={z} position={[0,.5,z]}>
-      <boxGeometry args={[59.5,1.5,3.6]}/><meshStandardMaterial color="#c44836" roughness={.38} metalness={.28}/>
-    </mesh>)}
-    {[-1,1].flatMap(x=>[-1,1].map(z=><mesh key={x+'-'+z} position={[x*28.5,1.37,z===1?102: -2]}>
-      <cylinderGeometry args={[.6,.6,.28,10]}/><meshStandardMaterial color="#dfb77a" metalness={.75} roughness={.25}/>
-    </mesh>))}
-    <mesh rotation={[-Math.PI/2,0,0]} position={[0,.24,50]}>
-      <planeGeometry args={[53.3,100]}/><meshStandardMaterial color="#285f4b" roughness={.9}/>
+    <mesh position={[0,.025,50]}><boxGeometry args={[57,.55,105]}/><meshStandardMaterial color="#ccae78" metalness={.13} roughness={.6}/></mesh>
+    {[-1,1].map(side=><mesh key={side} position={[side*28.5,.65,50]}><boxGeometry args={[2.4,1.4,108]}/><meshStandardMaterial color="#a54738" roughness={.48}/></mesh>)}
+    {[0,100].map(z=><mesh key={z} position={[0,.65,z]}><boxGeometry args={[59,1.4,2.4]}/><meshStandardMaterial color="#a54738" roughness={.48}/></mesh>)}
+    <mesh position={[0,-2.48,50]} rotation={[-Math.PI/2,0,0]}><planeGeometry args={[220,220]}/><meshStandardMaterial color="#161a18" roughness={1}/></mesh>
+    <Text position={[-26.35,1.4,50]} rotation={[-Math.PI/2,0,-Math.PI/2]} color="#f5d09a" fontSize={1.2} letterSpacing={.15}>ELECTRIC FOOTBALL</Text>
+    <Text position={[26.35,1.4,50]} rotation={[-Math.PI/2,0,Math.PI/2]} color="#f5d09a" fontSize={1.2} letterSpacing={.15}>THE TWO MINUTE DRILL</Text>
+  </group>;
+}
+function Field({yard,toGo}:{yard:number;toGo:number}){
+  return <group>
+    <mesh position={[0,.34,50]} rotation={[-Math.PI/2,0,0]}>
+      <planeGeometry args={[55,101]}/><meshStandardMaterial color="#275e49" roughness={.94}/>
     </mesh>
-    {Array.from({length:10},(_,i)=><mesh key={'stripe'+i} rotation={[-Math.PI/2,0,0]} position={[0,.251,i*10+5]}>
-      <planeGeometry args={[53.3,10]}/><meshBasicMaterial color={i%2===0?'#31715a':'#275b48'}/>
+    {Array.from({length:10},(_,i)=><mesh key={i} position={[0,.348,5+i*10]} rotation={[-Math.PI/2,0,0]}>
+      <planeGeometry args={[54.8,10]}/><meshBasicMaterial color={i%2===0?'#306d52':'#285c45'}/>
     </mesh>)}
-    {[5,95].map(z=><mesh key={'zone'+z} rotation={[-Math.PI/2,0,0]} position={[0,.27,z]}>
-      <planeGeometry args={[53.3,10]}/><meshBasicMaterial color={z===95?'#933b30':'#244657'}/>
+    {[5,95].map((z,i)=><mesh key={z} position={[0,.37,z]} rotation={[-Math.PI/2,0,0]}>
+      <planeGeometry args={[54.7,10]}/><meshBasicMaterial color={i?'#b04f3f':'#273e53'}/>
     </mesh>)}
     {Array.from({length:21},(_,i)=>{
-      const z=i*5;return <group key={'line'+i}>
-        <mesh position={[0,.285,z]}><boxGeometry args={[53.2,.035,i%2===0?.22:.085]}/><meshBasicMaterial color="#d3dec7" transparent opacity={i%2===0?.92:.5}/></mesh>
-        {i%2===0 && i!==0 && i!==20 && [-1,1].map(x=><Text key={x} position={[x*20,.32,z+2]} rotation={[-Math.PI/2,0,x===-1?Math.PI:0]} fontSize={2.3} color="#cadbc4" anchorX="center" anchorY="middle">
-          {i<=10?i*5:(20-i)*5}
-        </Text>)}
+      const z=i*5;
+      return <group key={i}>
+        <mesh position={[0,.397,z]}><boxGeometry args={[54,.027,i%2===0?.2:.085]}/><meshBasicMaterial color="#f1e4c5" transparent opacity={i%2===0?.96:.6}/></mesh>
+        {i>0&&i<20&&i%2===0&&[-1,1].map(side=><Text key={side} position={[side*20,.405,z+2.1]} rotation={[-Math.PI/2,0,side<0?Math.PI:0]} fontSize={2.85} anchorX="center" color="#e4e5c9">{Math.min(i,20-i)*5}</Text>)}
       </group>;
     })}
-    {Array.from({length:101},(_,i)=>i%1===0 && i>0 && i<100 ? <group key={'hash'+i}>
-      {[-1,1].map(x=><mesh key={x} position={[x*8,.3,i]}><boxGeometry args={[1,.035,.14]}/><meshBasicMaterial color="#e5e8d6" transparent opacity={.72}/></mesh>)}
-    </group> : null)}
-    <Text position={[0,.335,4.6]} rotation={[-Math.PI/2,0,0]} fontSize={5.5} letterSpacing={.15} color="#acc9c8">GRIDIRON</Text>
-    <Text position={[0,.335,95]} rotation={[-Math.PI/2,0,0]} fontSize={5.6} letterSpacing={.17} color="#f6d8b4">ELECTRIC</Text>
-    <Text position={[0,1.48,-1.95]} rotation={[-Math.PI/2,0,0]} fontSize={1.5} letterSpacing={.23} color="#f5dbaf">V I B R A - B O W L  •  1 9 7 4</Text>
-    <mesh position={[-25.6,1.44,109.8]} rotation={[0,0,0]}><cylinderGeometry args={[1.7,1.7,.45,18]}/><meshStandardMaterial color="#eeb75d" metalness={.45} roughness={.3}/></mesh>
+    {Array.from({length:99},(_,i)=>i+1).map(z=><group key={z}>{[-1,1].map(s=><mesh key={s} position={[s*8,.41,z]}><boxGeometry args={[1,.02,.15]}/><meshBasicMaterial color="#f3e5cd" transparent opacity={.74}/></mesh>)}</group>)}
+    <Text position={[0,.43,4]} rotation={[-Math.PI/2,0,0]} fontSize={4} letterSpacing={.19} color="#e8dfc3">HOME</Text>
+    <Text position={[0,.43,96]} rotation={[-Math.PI/2,0,Math.PI]} fontSize={4} letterSpacing={.19} color="#f2c9a6">AWAY</Text>
+    <mesh position={[0,.54,clip(yard,1,99)]}><boxGeometry args={[54,.12,.29]}/><meshBasicMaterial color="#5ddaff" transparent opacity={.94}/></mesh>
+    <mesh position={[0,.54,clip(yard+toGo,1,99)]}><boxGeometry args={[54,.12,.31]}/><meshBasicMaterial color="#f7d161" transparent opacity={.98}/></mesh>
+    <Text position={[-23,.61,clip(yard+toGo+2,1,99)]} rotation={[-Math.PI/2,0,0]} fontSize={1.45} color="#ffe28d">1ST DOWN</Text>
   </group>;
 }
-
-function Goalpost({ z }: {z:number}) {
-  return <group position={[0,0,z]}>
-    <mesh position={[0,5,0]}><cylinderGeometry args={[.24,.24,10,8]}/><meshStandardMaterial color="#f4c04d" metalness={.6}/></mesh>
-    <mesh position={[0,10,0]} rotation={[0,0,Math.PI/2]}><cylinderGeometry args={[.19,.19,16,8]}/><meshStandardMaterial color="#f4c04d" metalness={.6}/></mesh>
-    {[-8,8].map(x=><mesh key={x} position={[x,14,0]}><cylinderGeometry args={[.19,.19,8,8]}/><meshStandardMaterial color="#f4c04d" metalness={.6}/></mesh>)}
+function Figure({number,side,x,z,role,living,select}:{number:number;side:'o'|'d';x:number;z:number;role:string;living:boolean;select:boolean}){
+  return <group position={[x,0,z]} rotation={[0,side==='o'?0:Math.PI,0]}>
+    <mesh position={[0,.51,0]}><boxGeometry args={[1.84,.30,1.62]}/><meshStandardMaterial color={side==='o'?'#b78031':'#9c3029'} roughness={.39}/></mesh>
+    {[.67,-.67].map(e=><mesh key={e} position={[e,.22,0]}><boxGeometry args={[.2,.13,1.75]}/><meshStandardMaterial color="#292621" roughness={.94}/></mesh>)}
+    {select&&<mesh position={[0,.67,0]} rotation={[-Math.PI/2,0,0]}><ringGeometry args={[1.2,1.49,24]}/><meshBasicMaterial color="#fff2ac" depthTest={false} side={THREE.DoubleSide}/></mesh>}
+    {[-.47,.47].map(s=><group key={s}>
+      <mesh position={[s,.98,0]}><boxGeometry args={[.45,.72,.55]}/><meshStandardMaterial color={side==='o'?'#d8a452':'#b74a3d'}/></mesh>
+      <mesh position={[s,1.2,-.28]}><boxGeometry args={[.48,.27,.66]}/><meshStandardMaterial color="#3a322d"/></mesh>
+    </group>)}
+    <mesh position={[0,1.78,0]}><boxGeometry args={[1.38,1.1,.88]}/><meshStandardMaterial color={side==='o'?O:D} roughness={.52}/></mesh>
+    <mesh position={[0,2.20,0]}><boxGeometry args={[1.77,.28,1.05]}/><meshStandardMaterial color={side==='o'?'#9f793d':'#a03931'}/></mesh>
+    {[-1,1].map(s=><mesh key={s} position={[s*.95,1.75,.15]} rotation={[.2,0,s*.23]}><boxGeometry args={[.34,.96,.42]}/><meshStandardMaterial color={side==='o'?O:D}/></mesh>)}
+    <mesh position={[0,2.86,0]}><sphereGeometry args={[.61,8,6]}/><meshStandardMaterial flatShading color={side==='o'?'#e5b668':'#bb4b3c'} roughness={.4}/></mesh>
+    <mesh position={[0,2.79,.49]}><boxGeometry args={[1.02,.18,.25]}/><meshStandardMaterial color="#f7e5c6" metalness={.2}/></mesh>
+    <Text position={[0,1.81,.452]} fontSize={.58} color={side==='o'?'#593e22':'#ffe5cf'}>{number}</Text>
+    {role==='QB'&&living&&<pointLight color="#ffdb8c" position={[0,3,0]} intensity={.5} distance={6}/>}
   </group>;
 }
-
-function CameraControls({view,yard,locked}:{view:Props['view'];yard:number;locked:boolean}) {
-  const controls=useRef<any>(null);
-  const targetY=clamp(yard+10,28,78);
-  useEffect(()=>{
-    if(!controls.current)return;
-    const c=controls.current;
-    c.target.set(0,0,targetY);
-    const cam=c.object as THREE.PerspectiveCamera;
-    if(view==='top')cam.position.set(0,101,targetY);
-    else cam.position.set(43,59,targetY-42);
-    cam.lookAt(0,0,targetY);
-    c.update();
-  },[view,targetY]);
-  return <OrbitControls ref={controls} makeDefault enabled={!locked} enablePan={false} minDistance={34} maxDistance={144} maxPolarAngle={Math.PI/2.15} minPolarAngle={.22} target={[0,0,targetY]}/>;
+type Member={id:number;side:'o'|'d';x:number;z:number;num:number;role:string};
+function lineup(yard:number,defense:Defense):Member[]{
+  const offense:Member[]=[
+    {id:0,side:'o',x:0,z:yard-5,num:12,role:'QB'},
+    {id:1,side:'o',x:3.5,z:yard-9,num:22,role:'RB'},
+    ...[-8,-4,0,4,8].map((x,i)=>({id:2+i,side:'o' as const,x,z:yard-1,num:60+i,role:'OL'})),
+    {id:7,side:'o',x:-22,z:yard-2,num:81,role:'WR'},
+    {id:8,side:'o',x:22,z:yard-2,num:14,role:'WR'},
+    {id:9,side:'o',x:13,z:yard-1,num:87,role:'TE'},
+    {id:10,side:'o',x:-13,z:yard-3,num:11,role:'SLOT'}
+  ];
+  const front=defense==='BLITZ'?1.9:2.4;
+  const lb=defense==='BLITZ'?4.7:defense==='LOADED BOX'?6:10;
+  const deep=defense==='SOFT ZONE'?23:16;
+  return [...offense,
+    ...[-8,-2,4,10].map((x,i)=>({id:11+i,side:'d' as const,x,z:yard+front,num:90+i,role:'DL'})),
+    ...[-12,0,12].map((x,i)=>({id:15+i,side:'d' as const,x,z:yard+lb,num:50+i,role:'LB'})),
+    ...[-22,-8,8,22].map((x,i)=>({id:18+i,side:'d' as const,x,z:yard+deep+(i%2)*3,num:20+i,role:'DB'}))
+  ];
 }
-
-function Lines({yard,play,defense,visible}:{yard:number;play:PlayId;defense:Defense;visible:boolean}) {
-  if(!visible)return null;
-  const routes: [number,number][][] = play==='inside' ? [[[3,yard-8],[4,yard+5]]] :
-    play==='outside' ? [[[3,yard-8],[16,yard+1],[23,yard+13]]] :
-    play==='screen' ? [[[-22,yard-2],[-23,yard+14]],[[3,yard-9],[17,yard+1],[21,yard+10]]] :
-    play==='quick' ? [[[-22,yard-2],[-12,yard+9]],[[22,yard-2],[13,yard+8]],[[-14,yard-3],[-1,yard+9]]] :
-    play==='sideline' ? [[[-22,yard-2],[-21,yard+13]],[[22,yard-2],[22,yard+14]],[[-14,yard-3],[-20,yard+12]]] :
-    play==='deep' ? [[[-22,yard-2],[-20,yard+27]],[[22,yard-2],[21,yard+30]],[[-14,yard-3],[-7,yard+24]]] : [];
-  return <group>
-    {routes.map((route,i)=><Line key={i} points={route.map(([x,z])=>[x,.62,clamp(z,1,98)])} color="#f9d172" lineWidth={2.8} transparent opacity={.87} dashed dashSize={.85} gapSize={.55}/>)}
-    {play!=='fieldgoal'&&play!=='spike'&&<mesh position={[0,.39,yard]}><boxGeometry args={[53,.12,.22]}/><meshBasicMaterial color="#66cbdf" transparent opacity={.9}/></mesh>}
-    {play!=='fieldgoal'&&play!=='spike'&&<mesh position={[0,.39,Math.min(99,yard+10)]}><boxGeometry args={[53,.1,.13]}/><meshBasicMaterial color="#eeb764" transparent opacity={.8}/></mesh>}
-    <Text position={[0,.44,clamp(yard+14,8,91)]} rotation={[-Math.PI/2,0,0]} fontSize={1.7} color="#f7c56a" outlineColor="#183d35" outlineWidth={.1}>{defense}</Text>
-  </group>;
-}
-
-function FigureMesh({figure,now,liveNow,motion,live,selectedReceiver,yard,defense}:{figure:Figure;now:React.RefObject<number>;liveNow:React.RefObject<number>;motion:Motion|null;live:Live|null;selectedReceiver:ReceiverId;yard:number;defense:Defense}) {
+function Player({member,yard,defense,live,motion,elapsed,progress,selected}:{member:Member;yard:number;defense:Defense;live:Live|null;motion:Motion|null;elapsed:React.RefObject<number>;progress:React.RefObject<number>;selected:ReceiverId}){
   const ref=useRef<THREE.Group>(null);
-  const side=figure.side==='offense';
-  const primary=side?OFF:DEF;
-  const secondary=side?GOLD:'#e2aaa2';
   useFrame(({clock})=>{
     if(!ref.current)return;
-    const p=now.current??0;
-    const [x,z]=figure.position;
-    let dx=0,dz=0;
-    if(live && !motion){
-      const t=liveNow.current;
-      let px=x,pz=z;
-      if(side){
-        if([1,7,8,9,10].includes(figure.id)){
-          [px,pz]=receiverPoint(figure.id as ReceiverId,live.play,yard,t);
-        }else if(figure.role==='QB')pz=z-Math.min(t*1.2,2);
-        else { pz=z+Math.min(t*1.8,3.5);px=x+(figure.id%2?-.5:.5)*Math.min(t,2); }
-      }else{
-        if(figure.role==='DB') [px,pz]=coveragePoint(figure.id-18,defense,yard,t);
-        else {pz=z-Math.min(t*(figure.role==='DL'?5.1:3.4),14);px=x+(figure.id%2?.55:-.55)*t;}
-      }
-      ref.current.position.set(px,.2+Math.abs(Math.sin(clock.elapsedTime*24+figure.id))*.075,clamp(pz,1,99));
-    }else if(motion){
-      const {play,yards}=motion.result;
-      if(motion.releaseAt!==undefined && passPlay(play)){
-        const t=motion.releaseAt+p*1.25;
-        if(side && [1,7,8,9,10].includes(figure.id)){
-          const [px,pz]=receiverPoint(figure.id as ReceiverId,play,yard,t);
-          ref.current.position.set(px,.2+Math.sin(clock.elapsedTime*18+figure.id)**2*.055,clamp(pz,1,99));
-          return;
-        }
-        if(!side && figure.role==='DB'){
-          const [px,pz]=coveragePoint(figure.id-18,defense,yard,t);
-          ref.current.position.set(px,.2,clamp(pz,1,99));return;
-        }
-      }
-      if(side){
-        if(figure.role==='OL'){dz=2+Math.min(2,p*3);dx=figure.id%2===0?.6:-.6;}
-        else if(figure.role==='QB'){dz=play==='outside'?3:play==='inside'?1:-2;dx=play==='outside'?2:0;}
-        else if(figure.role==='RB'){
-          dx=play==='outside'?13:play==='screen'?11:0; dz=play==='inside'||play==='outside'?yards+8:play==='screen'?yards+7:2;
-        }else{
-          dx=play==='quick'?(x>0?-6:6):play==='sideline'?x>0?2:-2:play==='deep'?(x>0?3:-3):2;
-          dz=play==='deep'?Math.max(19,yards):play==='sideline'?14:play==='quick'?9:7;
-        }
-      }else{
-        dz=-(3+(figure.role==='DL'?.9:figure.role==='LB'?.7:.3)*7);
-        dx=(figure.id%2===0?-1:1)*1.4;
-      }
-      ref.current.position.set(x+dx*p,.2+Math.abs(Math.sin(clock.elapsedTime*26+figure.id))*.055*p,clamp(z+dz*p,1,99));
-    }else ref.current.position.set(x,.2,clamp(z,1,99));
+    const p=motion?progress.current:0;
+    const t=live?elapsed.current:motion?.releaseAt!==undefined?motion.releaseAt+p*1.5:0;
+    let x=member.x,z=member.z;
+    const pass=live?.play??motion?.result.play;
+    if((live || (motion?.releaseAt!==undefined)) && pass && passPlay(pass)){
+      if(member.side==='o' && [1,7,8,9,10].includes(member.id)){
+        [x,z]=receiverPoint(member.id as ReceiverId,pass,yard,t);
+      }else if(member.side==='o'&&member.role==='QB'){
+        z=yard-5-Math.min(t*1.15,2.5);
+      }else if(member.side==='d' && member.role==='DB'){
+        [x,z]=coveragePoint(member.id-18,defense,yard,t);
+      }else if(member.side==='d'){
+        z=member.z-Math.min(t*(member.role==='DL'?4.5:3),15);
+      }else if(member.side==='o'&&member.role==='OL')z=member.z+Math.min(t*1.15,3.5);
+    } else if(motion){
+      if(member.side==='o'){
+        if(member.role==='RB'){x+=motion.result.play==='outside'?12*p:0;z+=Math.max(0,motion.result.yards+8)*p;}
+        else if(member.role==='OL')z+=2*p;
+        else if(member.role==='QB')z-=1.5*p;
+        else z+=Math.min(8,Math.max(0,motion.result.yards))*p;
+      } else z-=3*p;
+    }
+    ref.current.position.set(x, Math.abs(Math.sin(clock.elapsedTime*26+member.id))*(live||motion?.result?.play? .06:.014),clip(z,1,99));
   });
-  return <group ref={ref} rotation={[0,side?0:Math.PI,0]}>
-    {side && figure.id === selectedReceiver && <mesh position={[0,.18,0]} rotation={[-Math.PI/2,0,0]}><ringGeometry args={[1.35,1.65,20]}/><meshBasicMaterial color="#fff098" side={THREE.DoubleSide}/></mesh>}
-    <mesh position={[0,.18,0]} castShadow><boxGeometry args={[2.15,.38,1.75]}/><meshStandardMaterial color={side?'#be8b38':'#9c2925'} roughness={.38}/></mesh>
-    <mesh position={[0,.4,0]}><boxGeometry args={[1.72,.13,1.28]}/><meshStandardMaterial color="#342b23" roughness={.85}/></mesh>
-    {[-.48,.48].map(x=><group key={x}>
-      <mesh position={[x,.75,0]}><boxGeometry args={[.39,.78,.5]}/><meshStandardMaterial color={secondary}/></mesh>
-      <mesh position={[x,1.27,-.16]}><boxGeometry args={[.45,.35,.85]}/><meshStandardMaterial color={primary}/></mesh>
-    </group>)}
-    <mesh position={[0,1.75,0]}><boxGeometry args={[1.45,1.12,.94]}/><meshStandardMaterial color={primary} roughness={.59}/></mesh>
-    <mesh position={[0,2.22,.06]}><boxGeometry args={[2.05,.36,.98]}/><meshStandardMaterial color={secondary}/></mesh>
-    {[-1,1].map(s=><group key={s}>
-      <mesh position={[s*1.01,1.79,.12]} rotation={[.27,0,s*.26]}><boxGeometry args={[.37,1.05,.41]}/><meshStandardMaterial color={primary}/></mesh>
-      <mesh position={[s*1.1,1.23,.31]}><sphereGeometry args={[.24,6,5]}/><meshStandardMaterial color={secondary}/></mesh>
-    </group>)}
-    <mesh position={[0,2.89,0]}><sphereGeometry args={[.69,9,7]}/><meshStandardMaterial color={side?'#edbb5d':'#b73431'} roughness={.48}/></mesh>
-    <mesh position={[0,2.91,.5]}><boxGeometry args={[1.04,.23,.35]}/><meshStandardMaterial color={secondary} roughness={.4}/></mesh>
-    <mesh position={[0,2.59,.7]}><boxGeometry args={[.74,.12,.12]}/><meshStandardMaterial color="#dfd4af" metalness={.3}/></mesh>
-    <Text position={[0,1.81,.494]} fontSize={.58} color={side?'#613423':'#fff1cf'} anchorX="center" anchorY="middle">{figure.number}</Text>
+  return <group ref={ref}>
+    <Figure x={0} z={0} side={member.side} number={member.num} role={member.role} living={!!live} select={!!live&&member.id===selected}/>
   </group>;
 }
-
-function Football({yard,motion,now}:{yard:number;motion:Motion|null;now:React.RefObject<number>}) {
-  const ref=useRef<THREE.Group>(null);
+function Routes({yard,play}:{yard:number;play:PlayId}){
+  if(!passPlay(play))return null;
+  return <group>{RECEIVERS.map(r=>{
+    const points=Array.from({length:18},(_,i)=>{
+      const [x,z]=receiverPoint(r.id,play,yard,i*.34);
+      return [x,.61,z] as [number,number,number];
+    });
+    return <Line key={r.id} points={points} color={r.id===7?'#ffe09a':'#b7dcac'} opacity={.75} transparent lineWidth={1.5} dashed dashSize={.7} gapSize={.45}/>;
+  })}</group>;
+}
+function Clock({live,motion,defense,elapsed,progress,onTick,onSack,onDone}:{live:Live|null;motion:Motion|null;defense:Defense;elapsed:React.RefObject<number>;progress:React.RefObject<number>;onTick:(n:number)=>void;onSack:(n:number)=>void;onDone:()=>void}){
+  const fired=useRef(false);
+  const lastTick=useRef(-1);
+  useEffect(()=>{elapsed.current=0;lastTick.current=-1;fired.current=false;},[live?.id,elapsed]);
+  useEffect(()=>{progress.current=0;fired.current=false;},[motion?.id,progress]);
+  useFrame((_,dt)=>{
+    if(live&&!fired.current){
+      elapsed.current=Math.min(pressureLimit(defense),elapsed.current+Math.min(dt,.07));
+      const tenth=Math.floor(elapsed.current*10);
+      if(lastTick.current!==tenth){lastTick.current=tenth;onTick(elapsed.current);}
+      if(elapsed.current>=pressureLimit(defense)){fired.current=true;onSack(elapsed.current);}
+    }
+    if(motion&&!fired.current){
+      progress.current=Math.min(1,progress.current+Math.min(dt,.08)/1.15);
+      if(progress.current>=1){fired.current=true;onDone();}
+    }
+  });
+  return null;
+}
+function Ball({yard,motion,progress}:{yard:number;motion:Motion|null;progress:React.RefObject<number>}){
+  const ref=useRef<THREE.Mesh>(null);
   useFrame(()=>{
     if(!ref.current)return;
-    const p=now.current??0;
-    if(!motion){ref.current.position.set(0,2.7,yard-5);return;}
-    const {play,yards,complete}=motion.result;
-    const toX=motion.aim?.[0] ?? (play==='outside'?16:play==='deep'?18:play==='sideline'?-21:play==='screen'?16:play==='inside'?3:-12);
-    const toZ=motion.aim?.[1] ?? clamp(yard+yards,1,100);
-    const fromZ=yard-5;
-    const flight=play==='fieldgoal'?13:play==='deep'?8:play==='inside'||play==='outside'?1.3:4;
-    ref.current.position.set(toX*p,2.8+Math.sin(p*Math.PI)*flight,fromZ+(toZ-fromZ)*p);
-    if(!complete&&play!=='inside'&&play!=='outside')ref.current.position.y=Math.max(.5,ref.current.position.y-1.6*p);
-    ref.current.rotation.z=p*7;
+    const p=progress.current;
+    if(!motion){ref.current.position.set(0,3.12,yard-5);ref.current.rotation.z=0;return;}
+    const target=motion.aim??[motion.result.play==='outside'?16:4,clip(yard+motion.result.yards,1,99)];
+    const airborne=passPlay(motion.result.play)||motion.result.play==='fieldgoal';
+    ref.current.position.set(target[0]*p,3.1+(airborne?Math.sin(Math.PI*p)*Math.min(8,3+Math.abs(target[1]-yard)*.15):.25*Math.sin(p*Math.PI)),yard-5+(target[1]-(yard-5))*p);
+    ref.current.rotation.z=p*7.1;
   });
-  return <group ref={ref}><mesh scale={[.55,.38,.34]}><sphereGeometry args={[1,10,8]}/><meshStandardMaterial color="#88401f" roughness={.67}/></mesh>
-    <mesh position={[0,.4,0]}><boxGeometry args={[.14,.06,.05]}/><meshBasicMaterial color="#f3d7a4"/></mesh></group>;
+  return <mesh ref={ref} geometry={ballGeometry} scale={[1.3,.72,.75]}><meshStandardMaterial color="#7f3b21" roughness={.55}/></mesh>;
 }
-
-function ActionClock({motion,onDone,progress}:{motion:Motion|null;onDone:()=>void;progress:React.RefObject<number>}) {
-  const fired=useRef(false);
-  useEffect(()=>{progress.current=0;fired.current=false;},[motion,progress]);
-  useFrame((_,delta)=>{
-    if(!motion || fired.current)return;
-    progress.current=Math.min(1,progress.current+delta/2.5);
-    if(progress.current>=1){fired.current=true;onDone();}
+function Beacon({id,play,yard,live,elapsed,selected,onSelect}:{id:ReceiverId;play:PlayId;yard:number;live:Live|null;elapsed:React.RefObject<number>;selected:boolean;onSelect:(id:ReceiverId)=>void}){
+  const grp=useRef<THREE.Group>(null);
+  const receiver=RECEIVERS.find(r=>r.id===id)!;
+  useFrame(()=>{
+    if(!grp.current||!live)return;
+    const [x,z]=receiverPoint(id,play,yard,elapsed.current);
+    grp.current.position.set(x,4.8,z);
   });
-  return null;
+  if(!live)return null;
+  return <group ref={grp}>
+    <Html center distanceFactor={21} zIndexRange={[50,10]} style={{pointerEvents:'auto'}}>
+      <button type="button" className={'player-beacon '+(selected?'is-selected':'')} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();onSelect(id);}} title={'Target #'+receiver.number+' '+receiver.label}>
+        <span>{receiver.number}</span><strong>{receiver.label}</strong>
+      </button>
+    </Html>
+  </group>;
 }
-
-function LiveClock({live,defense,elapsed,onTick,onSack}:{live:Live|null;defense:Defense;elapsed:React.RefObject<number>;onTick:(seconds:number)=>void;onSack:(seconds:number)=>void}) {
-  const fired=useRef(false);
-  const last=useRef(-1);
-  useEffect(()=>{elapsed.current=0;fired.current=false;last.current=-1;},[live?.id,elapsed]);
-  useFrame((_,delta)=>{
-    if(!live || fired.current)return;
-    elapsed.current=Math.min(pressureLimit(defense),elapsed.current+Math.min(.08,delta));
-    const tenths=Math.floor(elapsed.current*10);
-    if(tenths!==last.current){last.current=tenths;onTick(elapsed.current);}
-    if(elapsed.current>=pressureLimit(defense)){fired.current=true;onSack(elapsed.current);}
-  });
-  return null;
+function Target({aim,active}:{aim:Point;active:boolean}){
+  if(!active)return null;
+  return <group position={[aim[0],.65,aim[1]]}>
+    <mesh rotation={[-Math.PI/2,0,0]}><ringGeometry args={[1.22,1.6,24]}/><meshBasicMaterial color="#ffeb9a" transparent opacity={.93} depthTest={false} side={THREE.DoubleSide}/></mesh>
+    <mesh><sphereGeometry args={[.18,8,6]}/><meshBasicMaterial color="#fff5ba" depthTest={false}/></mesh>
+  </group>;
 }
-
-function Scene({yard,defense,selectedPlay,view,motion,live,aim,selectedReceiver,onAim,onThrow,onTick,onSack,onDone}:Props) {
+function Scene(props:Props){
+  const {yard,toGo,defense,play,view,live,motion,aim,receiver,onAim,onThrow,onSelect,onTick,onSack,onDone}=props;
+  const elapsed=useRef(0);
   const progress=useRef(0);
-  const liveNow=useRef(0);
   const displayYard=motion?.startYard??yard;
-  const figures=formation(displayYard,defense);
+  const members=useMemo(()=>lineup(displayYard,defense),[displayYard,defense]);
   return <>
-    <color attach="background" args={['#141b19']}/>
-    <fog attach="fog" args={['#141b19',100,220]}/>
-    <ambientLight intensity={1.65}/>
-    <directionalLight position={[24,68,20]} intensity={2.6} color="#fff1c9"/>
-    <directionalLight position={[-12,24,69]} intensity={.55} color="#85cec2"/>
-    <mesh rotation={[-Math.PI/2,0,0]} position={[0,-2.75,50]}><planeGeometry args={[250,250]}/><meshStandardMaterial color="#151c1b" roughness={1}/></mesh>
-    <Frame/>
-    <Goalpost z={102}/>
-    <Lines yard={displayYard} play={selectedPlay} defense={defense} visible={!motion&&!live}/>
-    <ActionClock motion={motion} onDone={onDone} progress={progress}/>
-    <LiveClock live={live} defense={defense} elapsed={liveNow} onTick={onTick} onSack={onSack}/>
-    {figures.map(figure=><FigureMesh key={figure.id} figure={figure} now={progress} liveNow={liveNow} motion={motion} live={live} selectedReceiver={selectedReceiver} yard={displayYard} defense={defense}/>)}
-    <Football yard={displayYard} motion={motion} now={progress}/>
-    {live && passPlay(live.play) && <>
-      <Line points={[[0,2.7,displayYard-5],[aim[0],.8,aim[1]]]} color="#f8c65e" transparent opacity={.65} lineWidth={1} dashed dashSize={1.1} gapSize={.6}/>
-      <group position={[aim[0],.55,aim[1]]}>
-        <mesh rotation={[-Math.PI/2,0,0]}><ringGeometry args={[1.25,1.59,24]}/><meshBasicMaterial color="#ffe196" side={THREE.DoubleSide} depthTest={false}/></mesh>
-        <mesh><sphereGeometry args={[.3,8,6]}/><meshBasicMaterial color="#fff2b6" depthTest={false}/></mesh>
-      </group>
-      <mesh rotation={[-Math.PI/2,0,0]} position={[0,4.3,50]}
-        onPointerMove={e=>{e.stopPropagation();onAim([clamp(e.point.x,-25,25),clamp(e.point.z,1,99)]);}}
-        onPointerDown={e=>{e.stopPropagation();onThrow([clamp(e.point.x,-25,25),clamp(e.point.z,1,99)]);}}>
-        <planeGeometry args={[53,100]}/><meshBasicMaterial transparent opacity={0} depthWrite={false} side={THREE.DoubleSide}/>
-      </mesh>
-    </>}
-    <CameraControls view={view} yard={displayYard} locked={!!live}/>
+    <color attach="background" args={['#151b1a']}/>
+    <ambientLight intensity={1.75} color="#fff1d7"/>
+    <directionalLight position={[28,70,-16]} intensity={2.15} color="#fce8c6"/>
+    <directionalLight position={[-20,30,70]} intensity={.7} color="#9bdbd5"/>
+    <CameraRig yard={displayYard} view={view} live={live} elapsed={elapsed}/>
+    <WoodCabinet/>
+    <Field yard={displayYard} toGo={toGo}/>
+    {!live&&!motion&&<Routes yard={displayYard} play={play}/>}
+    <Clock live={live} motion={motion} defense={defense} elapsed={elapsed} progress={progress} onTick={onTick} onSack={onSack} onDone={onDone}/>
+    {members.map(m=><Player key={m.id} member={m} yard={displayYard} defense={defense} live={live} motion={motion} elapsed={elapsed} progress={progress} selected={receiver}/>)}
+    <Ball yard={displayYard} motion={motion} progress={progress}/>
+    {RECEIVERS.map(r=><Beacon key={r.id} id={r.id} play={play} yard={displayYard} elapsed={elapsed} live={live} selected={r.id===receiver} onSelect={onSelect}/>)}
+    <Target aim={aim} active={!!live}/>
+    {!!live && <mesh rotation={[-Math.PI/2,0,0]} position={[0,.78,50]}
+      onPointerMove={e=>{e.stopPropagation();onAim([clip(e.point.x,-25,25),clip(e.point.z,1,99)]);}}
+      onPointerDown={e=>{e.stopPropagation();onThrow([clip(e.point.x,-25,25),clip(e.point.z,1,99)]);}}>
+      <planeGeometry args={[53.9,99]}/><meshBasicMaterial transparent opacity={0} depthWrite={false} side={THREE.DoubleSide}/>
+    </mesh>}
   </>;
 }
-
-export default function Board3D(props: Props) {
-  return <Canvas dpr={[.6,.9]} gl={{antialias:false,alpha:false,powerPreference:'high-performance'}} shadows={false}
-    camera={{position:[43,59,props.yard-32],fov:49,near:.1,far:400}} style={{width:'100%',height:'100%',imageRendering:'pixelated'}}
-    fallback={<div className="canvas-fallback">3D requires WebGL. Try a modern browser with hardware acceleration.</div>}>
+export default function Board3D(props:Props){
+  return <Canvas camera={{position:[7,50,props.yard-25],fov:43,near:.1,far:260}}
+    dpr={[.85,1.4]} gl={{antialias:true,alpha:false,powerPreference:'high-performance'}}
+    style={{width:'100%',height:'100%',touchAction:'none'}}
+    fallback={<div className="webgl-error">3D requires a WebGL-capable browser with hardware acceleration.</div>}>
     <Scene {...props}/>
   </Canvas>;
 }
