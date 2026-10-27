@@ -111,7 +111,6 @@ function App(){
     window.addEventListener('keydown',onKey);return ()=>window.removeEventListener('keydown',onKey);
   },[live,throwBall,aim,snap,chooseReceiver]);
 
-  const playName=PLAYS.find(p=>p.id===play)?.name ?? play.toUpperCase();
   const danger=live? Math.min(100,elapsed/pressureLimit(game.defense)*100):0;
   const nearEnd=visibleSeconds<=30;
 
