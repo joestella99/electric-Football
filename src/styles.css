@@ -167,3 +167,14 @@
   .scheme-grid button{min-height:48px}.scheme-grid small{display:none}
   .sheet-top h3{font-size:23px}.sheet-footer{margin-top:5px;padding:6px 0}.tactics-sheet>label{margin:7px 0 5px}
 }
+
+/* Live coverage feedback; information changes as players separate from defenders. */
+.receiver-choice small.receiver-status{font:800 10px 'Barlow Condensed',sans-serif;letter-spacing:.4px;padding:3px 5px;opacity:1;border-radius:1px}
+.receiver-choice .status-green{background:#c5e4c3;color:#215738}
+.receiver-choice .status-amber{background:#edce86;color:#6a461d}
+.receiver-choice .status-red{background:#e4aa9d;color:#8c352d}
+.receiver-choice.selected .status-green{background:#89d49a;color:#102f1d}
+.receiver-choice.selected .status-amber{background:#f2cb78;color:#412f10}
+.receiver-choice.selected .status-red{background:#e7a090;color:#5a241e}
+.receiver-choice:disabled{opacity:.38;filter:grayscale(.6)}
+@media(max-width:650px){.receiver-choice small.receiver-status{font-size:9px;padding:2px 2px}}
