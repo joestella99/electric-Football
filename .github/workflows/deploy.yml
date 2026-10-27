@@ -1,4 +1,4 @@
-name: Deploy Pitchcraft to GitHub Pages
+name: Deploy Electric Football to GitHub Pages
 
 on:
   push:
