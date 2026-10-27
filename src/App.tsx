@@ -1,254 +1,237 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Activity, ArrowRight, Check, ChevronDown, Clock3, Crosshair, Flag, Gamepad2, Maximize2, Play, RotateCcw, Scan, Shield, Target, Volume2, Zap } from 'lucide-react';
+import { ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Crosshair, Eye, Flag, Fullscreen, Goal, Keyboard, RotateCcw, Shield, Target, TimerReset, Zap } from 'lucide-react';
 import Board3D, { type Live, type Motion } from './components/Board3D';
-import { SCENARIOS, PLAYS, initialGame, formatClock, fieldSpot, kickDistance, simulate, useTimeout, type GameState, type PlayId, type Result, type Tempo } from './logic/drill';
-import { RECEIVERS, receiverPoint, pressureLimit, passPlay, resolveThrow, resolveSack, type Point, type ReceiverId } from './logic/throwing';
+import { SCENARIOS, PLAYS, fieldSpot, formatClock, initialGame, kickDistance, simulate, useTimeout, type GameState, type PlayId, type Result } from './logic/drill';
+import { RECEIVERS, passPlay, pressureLimit, receiverPoint, resolveSack, resolveThrow, type Point, type ReceiverId } from './logic/throwing';
 
-const VERSION='01.0';
-
-type View='angled'|'top';
-type HistoryItem={id:number;description:string;yards:number;grade:Result['grade'];time:string};
-
-function EightBit({children}:{children:React.ReactNode}) {return <span className="eightbit">{children}</span>;}
-function SmallLogo() {
-  return <div className="logo-lockup">
-    <div className="logo-square"><span>EV</span><span className="logo-volt">↯</span></div>
-    <div className="logo-copy"><span>ELECTRIC</span><strong>FOOTBALL<span className="logo-reg">TABLETOP EDITION</span></strong></div>
-  </div>;
-}
-function Digit({label,value,hot=false}:{label:string;value:string|number;hot?:boolean}) {
-  return <div className={'digit '+(hot?'digit-hot':'')}><span className="digit-label">{label}</span><strong>{value}</strong></div>;
-}
-function App(){
-  const [scenarioId,setScenarioId]=useState(SCENARIOS[0].id);
+type View = 'sideline' | 'coach';
+type Feed = { id: number; label: string; clock: number; gain: number; grade: string };
+const DRIVE_NAMES: Record<string,string> = {
+  'the-comeback':'THE COMEBACK',
+  'touchdown-or-bust':'TOUCHDOWN OR BUST',
+  'walk-off':'THE WALK-OFF'
+};
+const ICON: Record<PlayId,string> = {
+  quick:'↗',sideline:'⌝',deep:'↑',screen:'↘',inside:'⇧',outside:'↝',spike:'⏱',fieldgoal:'⌁'
+};
+const abbrev=(value:number)=>Math.max(0,Math.round(value)).toString().padStart(2,'0');
+function App() {
+  const [scenarioId,setScenarioId]=useState('the-comeback');
   const [game,setGame]=useState<GameState>(()=>initialGame());
   const [play,setPlay]=useState<PlayId>('quick');
-  const [tempo,setTempo]=useState<Tempo>('hurry');
-  const [view,setView]=useState<View>('angled');
+  const [view,setView]=useState<View>('sideline');
   const [receiver,setReceiver]=useState<ReceiverId>(7);
   const [live,setLive]=useState<Live|null>(null);
   const [motion,setMotion]=useState<Motion|null>(null);
   const [elapsed,setElapsed]=useState(0);
-  const [aim,setAim]=useState<Point>(()=>receiverPoint(7,'quick',initialGame().yard,1.5));
+  const [aim,setAim]=useState<Point>(()=>receiverPoint(7,'quick',41,2));
   const [autoLead,setAutoLead]=useState(true);
-  const [history,setHistory]=useState<HistoryItem[]>([]);
   const [last,setLast]=useState<Result|null>(null);
-  const [showHelp,setShowHelp]=useState(false);
-  const seq=useRef(0);
-  const busy=!!live||!!motion;
-  const selectedReceiver=RECEIVERS.find(r=>r.id===receiver)!;
-  const terminal=game.status!=='playing';
-  const visibleSeconds=Math.max(0,game.seconds-(live?Math.floor(elapsed):0)-(live&&game.clockRunning?7:0));
-  const leadTarget=useCallback((id:ReceiverId,at=1.35)=>receiverPoint(id,play,game.yard,at),[play,game.yard]);
-
-  const chooseReceiver=useCallback((id:ReceiverId)=>{
-    setReceiver(id);
-    setAutoLead(true);
-    setAim(leadTarget(id,live?elapsed+.85:1.35));
-  },[leadTarget,live,elapsed]);
+  const [feed,setFeed]=useState<Feed[]>([]);
+  const [help,setHelp]=useState(false);
+  const [historyOpen,setHistoryOpen]=useState(false);
+  const sequence=useRef(0);
+  const active=!!live||!!motion;
+  const finished=game.status!=='playing';
+  const pressure=pressureLimit(game.defense);
+  const remaining=Math.max(0,game.seconds-(live?Math.ceil(elapsed):0)-(live&&game.clockRunning?7:0));
+  const progress=live? Math.min(100,(elapsed/pressure)*100):0;
+  const selectedName=RECEIVERS.find(r=>r.id===receiver)?.label??'HARRIS';
 
   const reset=useCallback((id=scenarioId)=>{
     const scenario=SCENARIOS.find(s=>s.id===id)??SCENARIOS[0];
-    const next=initialGame(scenario);
-    setGame(next);setScenarioId(id);setPlay('quick');setTempo('hurry');
-    setReceiver(7);setAim(receiverPoint(7,'quick',next.yard,1.35));
-    setAutoLead(true);setLive(null);setMotion(null);setHistory([]);setElapsed(0);setLast(null);seq.current+=1;
+    const fresh=initialGame(scenario);
+    setScenarioId(scenario.id);setGame(fresh);setPlay('quick');setReceiver(7);
+    setAim(receiverPoint(7,'quick',fresh.yard,2));setAutoLead(true);
+    setLive(null);setMotion(null);setElapsed(0);setLast(null);setFeed([]);
+    sequence.current+=1;
   },[scenarioId]);
 
-  const snap=useCallback(()=>{
-    if(busy||terminal)return;
-    setLast(null);
-    if(passPlay(play)){
-      setElapsed(0);setAutoLead(true);setAim(receiverPoint(receiver,play,game.yard,1.5));
-      setLive({id:++seq.current,play});
-    }else{
-      const result=simulate(game,play,tempo);
-      setMotion({id:++seq.current,result,startYard:game.yard});
-    }
-  },[busy,terminal,play,receiver,game,tempo]);
-
-  const commit=useCallback((result:Result)=>{
-    setGame(result.state);setLast(result);
-    setHistory(items=>[{id:++seq.current,description:result.description,yards:result.yards,grade:result.grade,time:formatClock(result.state.seconds)},...items].slice(0,12));
-    setLive(null);setMotion(null);setElapsed(0);
-    setAutoLead(true);
+  const completePlay=useCallback((result:Result)=>{
+    setGame(result.state);
+    setFeed(items=>[{id:++sequence.current,label:result.description,clock:result.state.seconds,gain:result.yards,grade:result.grade},...items].slice(0,8));
+    setLast(result);setMotion(null);setLive(null);setElapsed(0);setAutoLead(true);
   },[]);
 
-  const throwBall=useCallback((point:Point)=>{
-    if(!live||!passPlay(live.play))return;
-    const result=resolveThrow(game,live.play,tempo,receiver,point,elapsed);
-    setLive(null);
-    setMotion({id:++seq.current,result,startYard:game.yard,aim:point,releaseAt:elapsed});
-  },[live,game,tempo,receiver,elapsed]);
+  const snap=useCallback(()=>{
+    if(active||finished)return;
+    setLast(null);
+    if(passPlay(play)){
+      setElapsed(0);setAutoLead(true);setAim(receiverPoint(receiver,play,game.yard,2));
+      setLive({id:++sequence.current,play});
+    } else {
+      const result=simulate(game,play,'hurry');
+      setMotion({id:++sequence.current,result,startYard:game.yard});
+    }
+  },[active,finished,play,receiver,game]);
+
+  const choose=useCallback((id:ReceiverId)=>{
+    setReceiver(id);setAutoLead(true);
+    setAim(receiverPoint(id,play,game.yard,live?elapsed+1.1:2));
+  },[game.yard,live,elapsed,play]);
+
+  const throwNow=useCallback((point:Point,id?:ReceiverId)=>{
+    if(!live)return;
+    const target=id??receiver;
+    const result=resolveThrow(game,live.play,'hurry',target,point,elapsed);
+    setLive(null);setMotion({id:++sequence.current,result,startYard:game.yard,aim:point,releaseAt:elapsed});
+  },[live,receiver,game,elapsed]);
 
   const sack=useCallback((seconds:number)=>{
     if(!live)return;
-    commit(resolveSack(game,tempo,seconds));
-  },[live,game,tempo,commit]);
+    completePlay(resolveSack(game,'hurry',seconds));
+  },[live,game,completePlay]);
 
-  const handleTick=useCallback((time:number)=>{
-    setElapsed(time);
-    if(autoLead&&live){setAim(receiverPoint(receiver,live.play,game.yard,time+.83));}
-  },[autoLead,live,receiver,game.yard]);
+  const onTick=useCallback((seconds:number)=>{
+    setElapsed(seconds);
+    if(live&&autoLead)setAim(receiverPoint(receiver,live.play,game.yard,seconds+1.15));
+  },[live,autoLead,receiver,game.yard]);
 
-  const handleAim=useCallback((p:Point)=>{setAim(p);setAutoLead(false);},[]);
+  const changePlay=(id:PlayId)=>{
+    if(active||finished)return;
+    setPlay(id);setAim(receiverPoint(receiver,id,game.yard,2));setAutoLead(true);
+  };
+  const special=(id:'spike'|'fieldgoal')=>{
+    if(active||finished)return;
+    completePlay(simulate(game,id,'hurry'));
+  };
+  const timeout=()=>setGame(state=>useTimeout(state));
+  const fullscreen=()=>{
+    if(document.fullscreenElement)void document.exitFullscreen();
+    else void document.documentElement.requestFullscreen?.();
+  };
+
+  // Real late-game urgency: a running clock continues while you choose your next play.
+  useEffect(()=>{
+    if(!game.clockRunning||active||finished)return;
+    const handle=window.setInterval(()=>{
+      setGame(old=>{
+        if(!old.clockRunning||old.status!=='playing')return old;
+        const seconds=Math.max(0,old.seconds-1);
+        return {...old,seconds,status:seconds?old.status:'lost',message:seconds?old.message:'THE CLOCK HITS ZERO. DRIVE OVER.'};
+      });
+    },1000);
+    return ()=>window.clearInterval(handle);
+  },[game.clockRunning,active,finished]);
 
   useEffect(()=>{
-    if(busy)return;
-    setAim(receiverPoint(receiver,play,game.yard,1.35));setAutoLead(true);
-  },[play,game.yard,receiver,busy]);
-
-  useEffect(()=>{
-    const onKey=(event:KeyboardEvent)=>{
-      if(event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement)return;
-      if(['Space','Digit1','Digit2','Digit3','Digit4','Digit5'].includes(event.code))event.preventDefault();
-      if(event.code.startsWith('Digit')&&live){
-        const idx=Number(event.code.slice(-1))-1;
-        if(idx>=0&&idx<RECEIVERS.length)chooseReceiver(RECEIVERS[idx].id);
+    const listener=(event:KeyboardEvent)=>{
+      const element=event.target;
+      if(element instanceof HTMLInputElement||element instanceof HTMLSelectElement||element instanceof HTMLTextAreaElement)return;
+      if(event.code==='Escape'){setHelp(false);return;}
+      if(event.code==='Space'){
+        event.preventDefault();
+        if(event.repeat)return;
+        if(live)throwNow(aim);
+        else if(!active&&!finished)snap();
       }
-      if(event.code==='Space'&&!event.repeat) live ? throwBall(aim) : snap();
+      const digit=event.code.startsWith('Digit')?Number(event.code.slice(-1)):0;
+      if(digit>=1&&digit<=6){
+        event.preventDefault();
+        if(live&&digit<=5)choose(RECEIVERS[digit-1].id);
+        else if(!active&&!finished&&digit<=6)changePlay(PLAYS[digit-1].id);
+      }
+      if(event.code==='KeyV')setView(v=>v==='sideline'?'coach':'sideline');
     };
-    window.addEventListener('keydown',onKey);return ()=>window.removeEventListener('keydown',onKey);
-  },[live,throwBall,aim,snap,chooseReceiver]);
+    window.addEventListener('keydown',listener);
+    return ()=>window.removeEventListener('keydown',listener);
+  });
 
-  const danger=live? Math.min(100,elapsed/pressureLimit(game.defense)*100):0;
-  const nearEnd=visibleSeconds<=30;
-
-  return <div className="site">
-    <header className="site-top">
-      <SmallLogo/>
-      <div className="top-center"><span className="pulse"></span> THE TABLETOP SERIES <span className="top-separator">/</span> VOL. 001</div>
-      <div className="top-actions"><span className="version">BUILD {VERSION} // 3D</span>
-        <button className="top-button" onClick={()=>setShowHelp(true)}><Gamepad2 size={15}/> HOW TO PLAY</button>
+  const runPlay=!passPlay(play);
+  return <div className="game-shell">
+    <header className="topbar">
+      <div className="wordmark"><span className="bolt">ϟ</span><span>ELECTRIC<strong>FOOTBALL</strong></span><i>ARCADE</i></div>
+      <div className="scorebug">
+        <div className="team-score"><span className="team-emblem home">H</span><span className="team-name">HOME</span><b>{game.ours}</b></div>
+        <div className="score-middle"><span>4TH QUARTER</span><strong className={remaining<31?'critical':''}>{formatClock(remaining)}</strong></div>
+        <div className="team-score away-score"><b>{game.theirs}</b><span className="team-name">AWAY</span><span className="team-emblem away">A</span></div>
+      </div>
+      <div className="toolbar">
+        <label className="scenario-select"><span>SCENARIO</span><select value={scenarioId} disabled={active} onChange={e=>reset(e.target.value)}>
+          {SCENARIOS.map(s=><option key={s.id} value={s.id}>{DRIVE_NAMES[s.id]}</option>)}
+        </select><ChevronDown size={13}/></label>
+        <button className="icon-button" aria-label="How to play" title="How to play" onClick={()=>setHelp(true)}><CircleHelp size={19}/></button>
+        <button className="icon-button fullscreen-icon" aria-label="Full screen" title="Full screen" onClick={fullscreen}><Fullscreen size={18}/></button>
       </div>
     </header>
-
-    <div className="ticker">
-      <div className="ticker-inner"><span><Zap size={13} fill="currentColor"/> POWER ON</span>
-        <span>EST. 1974 / REIMAGINED 2026</span><span>THE CLOCK IS TICKING. YOU CALL THE SHOTS.</span><span className="ticker-indicator">● ALL SYSTEMS GO</span></div>
-    </div>
-
-    <main className="dashboard">
-      <section className="intro">
-        <div><div className="eyebrow"><span className="eyebrow-square"/> WELCOME TO THE BIG MOMENT</div>
-        <h1>THE <em>TWO-MINUTE</em> <br className="small-break"/> DRILL<span className="h1-period">.</span></h1>
-        <p>One drive. One shot. A vibrating tabletop full of chaos.<br/> Call the play, read the defense, and <b>make the throw yourself.</b></p></div>
-        <div className="intro-side"><div className="circle-mark">E<br/><span>F</span></div><div>HEAD COACH <b>YOU</b><span>INTERACTIVE FIELD GENERAL</span></div></div>
-      </section>
-
-      <div className="game-grid">
-        <aside className="sidebar left-sidebar">
-          <div className="side-section scene-picker">
-            <div className="section-heading"><span>01 /</span> YOUR SITUATION</div>
-            <label htmlFor="scenario">SELECT A CHALLENGE</label>
-            <div className="select-wrap"><select id="scenario" disabled={busy} value={scenarioId} onChange={e=>reset(e.target.value)}>
-              {SCENARIOS.map(s=><option key={s.id} value={s.id}>{s.label} — {s.detail}</option>)}
-            </select><ChevronDown size={14}/></div>
-            <div className="scenario-note"><span className="orange-led"/> {SCENARIOS.find(s=>s.id===scenarioId)?.detail}</div>
-          </div>
-
-          <div className="side-section scoreboard-card">
-            <div className="section-heading"><span>02 /</span> GAME CENTER</div>
-            <div className="scoreboard">
-              <div className="score-row"><div className="team-logo user-logo">H</div><div className="team-info"><span>YOUR TEAM</span><strong>HOME</strong></div><strong className="team-score">{game.ours}</strong></div>
-              <div className="score-divider"><span>VS.</span><div/></div>
-              <div className="score-row"><div className="team-logo away-logo">A</div><div className="team-info"><span>THE OPPONENT</span><strong>AWAY</strong></div><strong className="team-score">{game.theirs}</strong></div>
-            </div>
-            <div className="gameclock"><div className="clock-head"><span>Q4</span><span>GAME CLOCK</span><span className="clock-dot">●</span></div><strong className={nearEnd?'urgent':''}>{formatClock(visibleSeconds)}</strong><span className="two-min">TWO MINUTE WARNING</span></div>
-            <div className="info-tiles"><Digit label="DOWN" value={game.down}/><Digit label="TO GO" value={game.toGo}/><Digit label="BALL ON" value={fieldSpot(game.yard)}/></div>
-            <div className="timeouts"><span>TIMEOUTS</span><div>{[0,1,2].map(i=><div key={i} className={'timeout-dot '+(i<game.timeouts?'available':'')}/>)}</div><button disabled={busy||terminal||!game.clockRunning||game.timeouts===0} onClick={()=>setGame(g=>useTimeout(g))}>CALL TIMEOUT</button></div>
-          </div>
-
-          <div className="side-section defense-card">
-            <div className="section-heading"><span>03 /</span> THE DEFENSE</div>
-            <div className="defense-title"><Shield size={18}/><strong>{game.defense}</strong></div>
-            <p>{game.defense==='BLITZ'?'Extra rushers are coming. Get the ball out fast.':game.defense==='LOADED BOX'?'The front is stacked. Attack space outside.':'Defenders are dropping into coverage. Take what they give.'}</p>
-            <div className="defense-foot"><span>PRESSURE METER</span><div className="pressure-bars">{Array.from({length:10},(_,i)=><span key={i} className={i<Math.round((game.defense==='BLITZ'?9:game.defense==='LOADED BOX'?6:3))?'lit':''}/>)}</div></div>
-          </div>
-          <div className="side-footer"><Volume2 size={14}/> THE HUM OF A CLASSIC. THE THRILL OF THE CALL.</div>
-        </aside>
-
-        <section className="middle">
-          <div className="board-header">
-            <div><span className="mini-kicker">THE FIELD // LIVE SIMULATION</span><h2>ELECTRIC GRIDIRON <span> / 3D</span></h2></div>
-            <div className="view-tabs"><button onClick={()=>setView('angled')} className={view==='angled'?'active':''}><Scan size={14}/> ANGLED</button><button onClick={()=>setView('top')} className={view==='top'?'active':''}><Maximize2 size={14}/> TOP-DOWN</button></div>
-          </div>
-          <div className={'board-stage '+(live?'board-live':'')}>
-            <Board3D yard={game.yard} defense={game.defense} selectedPlay={play} view={view} motion={motion} live={live}
-              aim={aim} selectedReceiver={receiver} onAim={handleAim} onThrow={throwBall} onTick={handleTick} onSack={sack}
-              onDone={()=>{if(motion)commit(motion.result);}}/>
-            <div className="board-corner top-left"><span className="signal"/> <span>{live?'● LIVE PLAY':motion?'● SIMULATING':'● PRE-SNAP'}</span> <span className="corner-muted">CAM 01 / TABLETOP</span></div>
-            <div className="board-corner top-right"><span>NO. {String(game.plays+1).padStart(2,'0')}</span><span className="corner-muted">VIBRATION ACTIVE</span></div>
-            {live&&<div className="board-warning"><div><b>QB IS LIVE</b><span>THROW BEFORE THE RUSH GETS HOME!</span></div><div className="sack-meter"><span style={{width:danger+'%'}}/></div><span>{Math.max(0,pressureLimit(game.defense)-elapsed).toFixed(1)}S TO PRESSURE</span></div>}
-            {!live&&!motion&&!terminal&&<div className="board-tip"><Crosshair size={16}/> {passPlay(play)?'PREVIEW THE ROUTES. SNAP TO TAKE CONTROL.':'YOUR TEAM IS SET. READY TO SNAP.'}</div>}
-            {motion&&<div className="play-animation"><span className="pulse"/> {passPlay(play)?'BALL IN THE AIR...':'PLAY IN MOTION...'}</div>}
-            {terminal&&<div className="game-over"><div className="result-badge">FINAL WHISTLE</div><strong>{game.status==='won'?'YOU WON.':game.status==='tied'?'TIE BALLGAME.':'DRIVE OVER.'}</strong><p>{game.message}</p><button onClick={()=>reset()}><RotateCcw size={16}/> TRY AGAIN</button></div>}
-            <div className="board-corner bottom-right">F/60 <span className="corner-muted">ELECTRIC FOOTBALL // PROTOTYPE</span></div>
-          </div>
-          <div className="field-legend"><span><i className="leg-home"/> HOME OFFENSE</span><span><i className="leg-away"/> AWAY DEFENSE</span><span><i className="leg-yellow"/> ROUTE / TARGET</span><span>DRAG TO ORBIT · SCROLL TO ZOOM</span></div>
-
-          <div className="playbook-header">
-            <div><div className="section-heading"><span>04 /</span> CALL THE PLAY</div><h2>YOUR PLAYBOOK <span> / CHOOSE WISELY</span></h2></div>
-            <div className="tempo-wrap"><label>TEMPO</label><div className="tempo-buttons"><button disabled={busy} onClick={()=>setTempo('hurry')} className={tempo==='hurry'?'active':''}>NO HUDDLE</button><button disabled={busy} onClick={()=>setTempo('huddle')} className={tempo==='huddle'?'active':''}>HUDDLE</button></div></div>
-          </div>
-          <div className="play-cards">{PLAYS.map((item,index)=><button key={item.id} disabled={busy||terminal} className={'play-card '+(play===item.id?'selected':'')} onClick={()=>setPlay(item.id)}>
-            <span className="card-top"><span>{String(index+1).padStart(2,'0')}</span><span className="card-type">{passPlay(item.id)?'P':'R'}</span></span>
-            <strong>{item.name}</strong><span className="play-tag">{item.tag}</span><span className="card-desc">{item.description}</span>
-            <span className="card-bottom">{play===item.id?<><Check size={13}/> SELECTED</>:<>CHOOSE PLAY <ArrowRight size={14}/></>}</span>
-          </button>)}</div>
-
-          <div className="specials">
-            <div className="special-btns">
-              <button disabled={busy||terminal||game.down>4} onClick={()=>{commit(simulate(game,'spike',tempo));}}><Clock3 size={15}/> SPIKE <span>STOP CLOCK</span></button>
-              <button disabled={busy||terminal} onClick={()=>{setPlay('fieldgoal');commit(simulate(game,'fieldgoal',tempo));}}><Target size={15}/> KICK FIELD GOAL <span>{kickDistance(game.yard)} YDS</span></button>
-            </div>
-            <button className="reset-link" onClick={()=>reset()}><RotateCcw size={14}/> RESTART DRILL</button>
-          </div>
-
-          {!live&&!motion&&!terminal&&<button className="snap-button" onClick={snap}><div className="snap-icon"><Play size={21} fill="currentColor"/></div><div><span>READY AT THE LINE?</span><strong>SNAP THE BALL</strong></div><span className="snap-right"><ArrowRight size={23}/></span></button>}
-          {motion&&<div className="busy-button"><Activity size={18}/> PLAY IN PROGRESS — WATCH THE FIELD</div>}
-          {live&&<div className="throw-tray">
-            <div className="tray-title"><div><span>QUARTERBACK CONTROL</span><strong>READ. AIM. <em>RELEASE.</em></strong></div><div><span>HOLDING THE BALL</span><strong>{elapsed.toFixed(1)}s</strong></div></div>
-            <div className="receiver-list">{RECEIVERS.map((r,i)=><button key={r.id} className={receiver===r.id?'active':''} onClick={()=>chooseReceiver(r.id)}>
-              <span className="receiver-key">{i+1}</span><strong>#{r.number} {r.label}</strong><small>{r.role}</small></button>)}</div>
-            <div className="throw-controls"><div><Crosshair size={17}/><span>{autoLead?'LEAD TARGET — CLICK FIELD TO OVERRIDE':'MANUAL TARGET — POINT & CLICK FIELD'}<small>{selectedReceiver.label} · X {aim[0].toFixed(0)} / Y {aim[1].toFixed(0)}</small></span></div>
-              <button onClick={()=>throwBall(aim)}><Target size={17}/> THROW NOW <span>SPACE ↵</span></button></div>
-            <div className="throw-instructions">Click anywhere on the field to aim <b>and throw immediately</b>. Or select a receiver and press <b>SPACE</b> to lead him automatically.</div>
-          </div>}
-          {last&&!busy&&<div className={'last-result '+(last.grade==='A'?'great':'')}><span className="result-grade">{last.grade}</span><div><span>LAST PLAY / {last.yards>=0?'+':''}{last.yards} YARDS</span><strong>{last.description}</strong></div><span className="last-clock">-{last.elapsed} SEC</span></div>}
-        </section>
-
-        <aside className="sidebar right-sidebar">
-          <div className="right-section label-section"><div className="section-heading"><span>05 /</span> COACH'S BOOTH</div><div className="coaching-card">
-            <span className="coaching-light">● SYSTEM READY</span><div className="pixel-helmet"><EightBit>12</EightBit></div>
-            <h3>YOU'RE IN CONTROL.</h3><p>You're not watching a highlight. You're the one making the call.</p><div className="coach-divider"/><span className="coach-note"><Zap size={15}/> EVERY SECOND MATTERS</span>
-          </div></div>
-          <div className="right-section instructions"><div className="section-heading"><span>06 /</span> THE CONTROLS</div>
-            <div className="instruction-row"><span className="step">01</span><div><b>CALL YOUR PLAY</b><p>Choose a route concept or run.</p></div></div>
-            <div className="instruction-row"><span className="step">02</span><div><b>SNAP THE BALL</b><p>Watch the miniature players come alive.</p></div></div>
-            <div className="instruction-row highlight-step"><span className="step">03</span><div><b>MAKE THE THROW</b><p>Pick a receiver. Aim anywhere. Release before the pressure.</p></div></div>
-            <div className="instruction-row"><span className="step">04</span><div><b>BEAT THE CLOCK</b><p>Manage downs, field position and timeouts.</p></div></div>
-          </div>
-          <div className="right-section history-section"><div className="section-heading"><span>07 /</span> DRIVE LOG</div>
-            {history.length?history.map(item=><div className="history-item" key={item.id}><span className={'history-grade grade-'+item.grade}>{item.grade}</span><div><strong>{item.description}</strong><span>{item.time} LEFT · {item.yards>=0?'+':''}{item.yards} YDS</span></div></div>):<div className="empty-history"><Flag size={19}/><span>NO PLAYS YET.<br/>HISTORY WILL APPEAR HERE.</span></div>}
-          </div>
-          <div className="maker-note">INDEPENDENT FAN-MADE 3D FOOTBALL EXPERIMENT. NOT AFFILIATED WITH TUDOR GAMES, NFL, OR TWO-MINUTE DRILL.</div>
-        </aside>
+    <div className="arena">
+      <Board3D yard={game.yard} toGo={game.toGo} defense={game.defense} play={play} view={view}
+        live={live} motion={motion} aim={aim} receiver={receiver}
+        onSelect={choose} onAim={point=>{setAutoLead(false);setAim(point);}}
+        onThrow={throwNow} onTick={onTick} onSack={sack}
+        onDone={()=>{if(motion)completePlay(motion.result);}}/>
+      <div className="screen-grain" aria-hidden="true"/>
+      <div className="arena-header">
+        <div className="down-flag"><b>{game.down}<sup>{game.down===1?'ST':game.down===2?'ND':game.down===3?'RD':'TH'}</sup> &amp; {game.toGo}</b><span>{fieldSpot(game.yard)}</span></div>
+        <div className="defense-read"><Shield size={15}/><span>DEFENSE</span><strong>{game.defense}</strong></div>
+      </div>
+      <div className="camera-switch">
+        <button className={view==='sideline'?'active':''} onClick={()=>setView('sideline')}><Eye size={14}/> FIELD</button>
+        <button className={view==='coach'?'active':''} onClick={()=>setView('coach')}><Target size={14}/> TACTICAL</button>
       </div>
 
-      <footer><div><SmallLogo/><span>BUILT FOR THE LOVE OF THE GAME.</span></div><div>THREE.JS × REACT × VIBRATING IMAGINATION <span>© 2026</span></div></footer>
-    </main>
+      {live&&<div className="pressure-panel"><div className="pressure-heading"><span className="hot-dot"/> POCKET COLLAPSING <strong>{(pressure-elapsed).toFixed(1)}s</strong></div>
+        <div className="pressure-track"><i style={{width:progress+'%'}}/></div><small>CLICK THE FIELD TO PLACE YOUR THROW</small></div>}
+      {!active&&!finished&&!last&&<div className="floating-tip"><span className="keycap">SPACE</span> SNAP THE BALL <span className="tip-separator"/> THEN READ YOUR RECEIVERS</div>}
+      {motion&&<div className="action-hint"><span className="hot-dot"/> PLAY IN MOTION</div>}
+      {last&&!active&&!finished&&<div className="play-result" key={last.state.plays}><span className={'grade grade-'+last.grade}>{last.grade}</span><div><strong>{last.description}</strong><small>{last.yards>=0?'+':''}{last.yards} YARDS · -{last.elapsed}s · {formatClock(game.seconds)} LEFT</small></div></div>}
+      {finished&&<div className="finish-overlay"><span className="final-eyebrow">FINAL WHISTLE</span><h1>{game.status==='won'?'DRIVE COMPLETE.':game.status==='tied'?'ALL TIED UP.':'GAME OVER.'}</h1><p>{game.message}</p><button onClick={()=>reset()}><RotateCcw size={17}/> PLAY AGAIN</button></div>}
+      <div className="drive-access"><button className={historyOpen?'opened':''} onClick={()=>setHistoryOpen(v=>!v)}><Flag size={14}/> DRIVE LOG <span>{feed.length}</span></button>
+        {historyOpen&&<div className="drive-popover"><strong>THIS DRIVE</strong>{feed.length?feed.map(item=><div key={item.id}><b>{item.grade}</b><span>{item.label}<small>{formatClock(item.clock)} · {item.gain>=0?'+':''}{item.gain} YDS</small></span></div>):<p>YOUR DRIVE STARTS HERE.</p>}</div>}
+      </div>
+      <div className="game-corner">TOY TABLETOP ENGINE <span>·</span> V1.1</div>
+    </div>
 
-    {showHelp&&<div className="modal-backdrop" role="presentation" onClick={()=>setShowHelp(false)}>
-      <div className="modal" role="dialog" aria-modal="true" aria-label="How to play" onClick={e=>e.stopPropagation()}>
-        <button className="modal-close" onClick={()=>setShowHelp(false)}>×</button>
-        <div className="eyebrow">THE COACH'S MANUAL / VOL. 001</div><h2>WELCOME TO THE <em>HOT SEAT.</em></h2>
-        <p>Win the game with a single late drive. The players are animated tabletop miniatures—not real NFL play outcomes.</p>
-        <div className="manual-grid"><div><span>01</span><strong>CALL</strong><p>Choose a run or passing concept. Defense and clock matter.</p></div>
-          <div><span>02</span><strong>SNAP</strong><p>Press SNAP. Receivers run their routes while rushers close in.</p></div>
-          <div><span>03</span><strong>THROW</strong><p>Select receiver 1–5, move your aim point, and click the field or press SPACE. Lead your receiver.</p></div>
-          <div><span>04</span><strong>MANAGE</strong><p>A throw out of bounds or an incompletion stops the clock. Timeouts, spikes, and kicks are available.</p></div></div>
-        <button className="manual-done" onClick={()=>setShowHelp(false)}>I'M READY. LET'S PLAY <ArrowRight size={17}/></button>
+    <section className={'control-deck '+(live?'deck-live':'')}>
+      <div className="deck-meta">
+        <div className="label-tiny"><span className="live-led"/> {live?'QUARTERBACK MODE':active?'PLAYING':'OFFENSIVE COORDINATOR'}</div>
+        <h2>{live?'FIND YOUR MAN.':finished?'THE FINAL DRIVE.':motion?'WATCH THE PLAY.':'CALL YOUR SHOT.'}</h2>
+        <p>{live?'Pick a receiver below, then click a spot on the field to throw. The rush is coming.':motion?'Players are in motion.':finished?'Run it back or try a different scenario.':'Choose a play. When the ball is snapped, you take over.'}</p>
+      </div>
+
+      {live ? <>
+        <div className="receiver-picker">
+          {RECEIVERS.map((r,i)=><button className={'receiver-choice '+(receiver===r.id?'selected':'')} key={r.id} onClick={()=>choose(r.id)}>
+            <kbd>{i+1}</kbd><span className="jersey">#{r.number}</span><b>{r.label}</b><small>{r.role}</small>
+          </button>)}
+        </div>
+        <div className="action-stack live-actions">
+          <span className="action-label"><Crosshair size={13}/> {autoLead?'AUTO-LEADING':'MANUAL AIM'} · {selectedName}</span>
+          <button className="primary-action throw-action" onClick={()=>throwNow(aim)}><Target size={19}/> THROW NOW <kbd>SPACE</kbd></button>
+          <span className="action-foot">OR TAP ANYWHERE ON THE FIELD</span>
+        </div>
+      </> : <>
+        <div className="play-selector">
+          {PLAYS.map((p,i)=><button key={p.id} className={'play-choice '+(play===p.id?'picked':'')} disabled={active||finished}
+            onClick={()=>changePlay(p.id)}>
+            <span className="play-index">{i+1}</span><span className="route-icon">{ICON[p.id]}</span><b>{p.name}</b><small>{passPlay(p.id)?'PASS':'RUN'}</small>
+          </button>)}
+        </div>
+        <div className="action-stack">
+          <span className="action-label">{active?'PLAY IN PROGRESS':(runPlay?'RUNNING PLAY':'PASSING PLAY')+' · '+game.defense}</span>
+          <button className="primary-action" onClick={snap} disabled={active||finished}><Zap size={20} fill="currentColor"/> SNAP BALL <kbd>SPACE</kbd></button>
+          <div className="secondary-actions">
+            <button disabled={active||finished||!game.clockRunning||game.timeouts<1} onClick={timeout}><TimerReset size={14}/> TIMEOUT <b>{game.timeouts}</b></button>
+            <button disabled={active||finished} onClick={()=>special('spike')}><Clock3 size={14}/> SPIKE</button>
+            <button disabled={active||finished} onClick={()=>special('fieldgoal')}><Goal size={14}/> KICK <small>{kickDistance(game.yard)}YD</small></button>
+          </div>
+        </div>
+      </>}
+    </section>
+
+    <footer className="micro-footer"><span>MADE FOR THE LOVE OF THE GAME · A FICTIONAL, INDEPENDENT TABLETOP FOOTBALL PROTOTYPE</span><button onClick={()=>reset()}><RotateCcw size={12}/> RESET DRIVE</button><span>NOT AFFILIATED WITH TUDOR GAMES OR THE NFL</span></footer>
+
+    {help&&<div className="modal-scrim" onClick={()=>setHelp(false)} role="presentation">
+      <div className="help-modal" role="dialog" aria-modal="true" aria-label="How to play" onClick={e=>e.stopPropagation()}>
+        <button className="close-help" onClick={()=>setHelp(false)} aria-label="Close">×</button>
+        <span className="help-kicker">FIELD MANUAL / NO. 001</span><h2>YOU'RE THE<br/><em>QUARTERBACK.</em></h2>
+        <p>One drive to win. Call your plays, read the defense, and make every throw yourself.</p>
+        <div className="help-steps"><div><b>01</b><span><strong>PICK A PLAY</strong><small>Six run and pass concepts. Choose based on down and defensive look.</small></span></div>
+          <div><b>02</b><span><strong>SNAP — SPACE</strong><small>Players come to life. Passing plays put you in QB control.</small></span></div>
+          <div><b>03</b><span><strong>THROW — CLICK OR SPACE</strong><small>Choose receivers 1–5. Click exactly where to throw, or press Space to lead the selected target. Timing matters.</small></span></div>
+          <div><b>04</b><span><strong>BEAT THE CLOCK</strong><small>The clock keeps running after in-bounds catches. Timeouts, spikes and kicks matter.</small></span></div></div>
+        <div className="help-keys"><Keyboard size={17}/> KEYS: 1–6 CALL PLAYS · 1–5 CHOOSE RECEIVERS · V CAMERA · SPACE SNAP/THROW</div>
+        <button className="help-start" onClick={()=>setHelp(false)}>GOT IT. LET'S PLAY <ArrowRight size={19}/></button>
       </div>
     </div>}
   </div>;
