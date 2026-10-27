@@ -36,6 +36,7 @@ function shape(ref:THREE.InstancedMesh|undefined,index:number,x:number,z:number,
 export default function InstancedPlayers({world,active,motion,progress,selected}:Props){
   const meshes=useRef<Partial<Record<Piece,THREE.InstancedMesh>>>({});
   const ring=useRef<THREE.Mesh>(null);
+  const lastDrawn=useRef<{world:World|null;selected:number}>({world:null,selected:-1});
   const bindings=(key:Piece)=>(node:THREE.InstancedMesh|null)=>{if(node)meshes.current[key]=node;};
   useEffect(()=>{
     for(const [key,mesh] of Object.entries(meshes.current) as [Piece,THREE.InstancedMesh][]){
@@ -53,6 +54,9 @@ export default function InstancedPlayers({world,active,motion,progress,selected}
     }
   },[world]);
   useFrame(({clock})=>{
+    const cached=lastDrawn.current;
+    if(!active&&!motion&&cached.world===world&&cached.selected===selected)return;
+    cached.world=world;cached.selected=selected;
     const parts=meshes.current;
     const p=motion?progress.current:0;
     let picked:Actor|undefined;
