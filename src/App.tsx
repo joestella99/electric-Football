@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowRight, ChevronDown, CircleHelp, Clock3, Crosshair, Eye, Flag, Fullscreen, Goal, Keyboard, RotateCcw, Shield, Target, TimerReset, Zap, SlidersHorizontal, X, ScanEye, ClipboardList } from 'lucide-react';
 import Board3D, { type Live, type Motion } from './components/Board3D';
 import { SCENARIOS, PLAYS, fieldSpot, formatClock, initialGame, kickDistance, simulate, useTimeout, type GameState, type PlayId, type Result } from './logic/drill';
-import { RECEIVERS, passPlay, pressureLimit, receiverPoint, resolveSack, resolveThrow, type Point, type ReceiverId } from './logic/throwing';
+import { RECEIVERS, passPlay, pressureLimit, receiverPoint, resolveSack, resolveThrow, coverageRead, type Point, type ReceiverId } from './logic/throwing';
 import { DEFAULT_CALL, FORMATIONS, PROTECTIONS, isEligible, presnapRead, coachingCue, type TacticalCall } from './logic/tactics';
 
 type View = 'sideline' | 'coach';
@@ -219,7 +219,7 @@ function App() {
       {live ? <>
         <div className="receiver-picker">
           {RECEIVERS.map((r,i)=><button disabled={!isEligible(r.id,call)} className={'receiver-choice '+(receiver===r.id?'selected':'')} key={r.id} onClick={()=>choose(r.id)}>
-            <kbd>{i+1}</kbd><span className="jersey">#{r.number}</span><b>{r.label}</b><small>{r.role}</small>
+            <kbd>{i+1}</kbd><span className="jersey">#{r.number}</span><b>{r.label}</b><small className={'receiver-status status-'+coverageRead(r.id,live.play,game.yard,elapsed+1.05,game.defense,call).color}>{isEligible(r.id,call)?coverageRead(r.id,live.play,game.yard,elapsed+1.05,game.defense,call).label:'BLOCKING'}</small>
           </button>)}
         </div>
         <div className="action-stack live-actions">
