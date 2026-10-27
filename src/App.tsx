@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowRight, ChevronDown, CircleHelp, Clock3, Crosshair, Eye, Flag, Fullscreen, Goal, Keyboard, RotateCcw, Shield, Target, TimerReset, Zap, SlidersHorizontal, X, ScanEye, ClipboardList } from 'lucide-react';
-import Board3D, { type Live, type Motion } from './components/Board3D';
+import Board3D, { type Live, type Motion, type ThrowRequest } from './components/Board3D';
 import { SCENARIOS, PLAYS, fieldSpot, formatClock, initialGame, kickDistance, simulate, useTimeout, type GameState, type PlayId, type Result } from './logic/drill';
-import { RECEIVERS, passPlay, pressureLimit, receiverPoint, resolveSack, resolveThrow, coverageRead, type Point, type ReceiverId } from './logic/throwing';
+import { RECEIVERS, passPlay, pressureLimit, type Point, type ReceiverId } from './logic/throwing';
+import { ROUTE_OPTIONS, starterRoutes, routeAt, type RouteKind, type RouteBook } from './logic/spatial';
 import { DEFAULT_CALL, FORMATIONS, PROTECTIONS, isEligible, presnapRead, coachingCue, type TacticalCall } from './logic/tactics';
 
 type View = 'sideline' | 'coach';
@@ -19,6 +20,11 @@ function App() {
   const [scenarioId,setScenarioId]=useState('the-comeback');
   const [game,setGame]=useState<GameState>(()=>initialGame());
   const [play,setPlay]=useState<PlayId>('quick');
+  const [routes,setRoutes]=useState<RouteBook>(()=>starterRoutes('quick'));
+  const [drawing,setDrawing]=useState<ReceiverId|null>(null);
+  const [coverage,setCoverage]=useState<Record<number,number>>({});
+  const [throwRequest,setThrowRequest]=useState<ThrowRequest|null>(null);
+  const [routeEditor,setRouteEditor]=useState<ReceiverId>(7);
   const [call,setCall]=useState<TacticalCall>({...DEFAULT_CALL});
   const [tacticsOpen,setTacticsOpen]=useState(false);
   const [view,setView]=useState<View>('sideline');
@@ -40,20 +46,22 @@ function App() {
   const coachNote=coachingCue(game,play,call);
   const remaining=Math.max(0,game.seconds-(live?Math.ceil(elapsed):0)-(live&&game.clockRunning?7:0));
   const progress=live? Math.min(100,(elapsed/pressure)*100):0;
+  const throwing=throwRequest!==null;
   const selectedName=RECEIVERS.find(r=>r.id===receiver)?.label??'HARRIS';
 
   const reset=useCallback((id=scenarioId)=>{
     const scenario=SCENARIOS.find(s=>s.id===id)??SCENARIOS[0];
     const fresh=initialGame(scenario);
     setScenarioId(scenario.id);setGame(fresh);setPlay('quick');setReceiver(7);
+    setRoutes(starterRoutes('quick'));setDrawing(null);setThrowRequest(null);setCoverage({});setRouteEditor(7);
     setCall({...DEFAULT_CALL});setTacticsOpen(false);
-    setAim(receiverPoint(7,'quick',fresh.yard,2,DEFAULT_CALL.formation));setAutoLead(true);
+    setAim([routeAt(7,starterRoutes('quick')[7],DEFAULT_CALL.formation,2)[0],fresh.yard+routeAt(7,starterRoutes('quick')[7],DEFAULT_CALL.formation,2)[1]]);setAutoLead(true);
     setLive(null);setMotion(null);setElapsed(0);setLast(null);setFeed([]);
     sequence.current+=1;
   },[scenarioId]);
 
   const completePlay=useCallback((result:Result)=>{
-    setGame(result.state);
+    setGame(result.state);setThrowRequest(null);setCoverage({});setDrawing(null);
     setFeed(items=>[{id:++sequence.current,label:result.description,clock:result.state.seconds,gain:result.yards,grade:result.grade},...items].slice(0,8));
     setLast(result);setMotion(null);setLive(null);setElapsed(0);setAutoLead(true);
   },[]);
@@ -62,39 +70,46 @@ function App() {
     if(active||finished)return;
     setLast(null);
     if(passPlay(play)){
-      setElapsed(0);setAutoLead(true);setTacticsOpen(false);setAim(receiverPoint(receiver,play,game.yard,2,call.formation));
+      setElapsed(0);setAutoLead(true);setTacticsOpen(false);setDrawing(null);setAim(lead(receiver,2));
       setLive({id:++sequence.current,play});
     } else {
       const result=simulate(game,play,'hurry',Math.random,call);
       setMotion({id:++sequence.current,result,startYard:game.yard});
     }
-  },[active,finished,play,receiver,game,call]);
+  },[active,finished,play,receiver,game,call,routes]);
 
+  const lead=useCallback((id:ReceiverId,t:number):Point=>{
+    const p=routeAt(id,routes[id],call.formation,t);
+    return [p[0],Math.max(1,Math.min(99,game.yard+p[1]))];
+  },[routes,call.formation,game.yard]);
   const choose=useCallback((id:ReceiverId)=>{
-    setReceiver(id);setAutoLead(true);
-    setAim(receiverPoint(id,play,game.yard,live?elapsed+1.1:2,call.formation));
-  },[game.yard,live,elapsed,play,call.formation]);
-
+    if(!isEligible(id,call))return;
+    setReceiver(id);setAutoLead(true);setAim(lead(id,live?elapsed+1:2));
+  },[call,lead,live,elapsed]);
   const throwNow=useCallback((point:Point,id?:ReceiverId)=>{
-    if(!live)return;
-    const target=id??receiver;
-    const result=resolveThrow(game,live.play,'hurry',target,point,elapsed,Math.random,call);
-    setLive(null);setMotion({id:++sequence.current,result,startYard:game.yard,aim:point,releaseAt:elapsed});
-  },[live,receiver,game,elapsed,call]);
-
-  const sack=useCallback((seconds:number)=>{
-    if(!live)return;
-    completePlay(resolveSack(game,'hurry',seconds));
-  },[live,game,completePlay]);
-
+    if(!live||throwRequest)return;
+    const selected=id??receiver;
+    if(!isEligible(selected,call))return;
+    setThrowRequest({id:++sequence.current,point,receiver:selected});
+  },[live,throwRequest,receiver,call]);
   const onTick=useCallback((seconds:number)=>{
     setElapsed(seconds);
-    if(live&&autoLead)setAim(receiverPoint(receiver,live.play,game.yard,seconds+1.15,call.formation));
-  },[live,autoLead,receiver,game.yard,call.formation]);
-
+    if(live&&autoLead&&!throwRequest)setAim(lead(receiver,seconds+.95));
+  },[live,autoLead,receiver,throwRequest,lead]);
+  const chooseRoute=(kind:RouteKind)=>{
+    if(active||finished)return;
+    setDrawing(null);setRoutes(prev=>({...prev,[routeEditor]:{kind}}));
+  };
+  const drawPoint=(point:Point)=>{
+    if(drawing===null||active)return;
+    setRoutes(prev=>{
+      const prevPoints=prev[drawing].kind==='custom'?prev[drawing].points??[]:[];
+      return {...prev,[drawing]:{kind:'custom',points:[...prevPoints.slice(-4),[point[0],Math.max(0,Math.min(72,point[1]-game.yard))]]}};
+    });
+  };
   const changePlay=(id:PlayId)=>{
     if(active||finished)return;
-    setPlay(id);setAim(receiverPoint(receiver,id,game.yard,2,call.formation));setAutoLead(true);
+    setPlay(id);setRoutes(starterRoutes(id));setDrawing(null);setReceiver(7);setAim([routeAt(7,starterRoutes(id)[7],call.formation,2)[0],game.yard+routeAt(7,starterRoutes(id)[7],call.formation,2)[1]]);setAutoLead(true);
   };
   const special=(id:'spike'|'fieldgoal')=>{
     if(active||finished)return;
@@ -103,12 +118,12 @@ function App() {
   const timeout=()=>setGame(state=>useTimeout(state));
   const chooseFormation=(formation:TacticalCall['formation'])=>{
     if(active||finished)return;
-    setCall(prev=>({...prev,formation}));setAim(receiverPoint(receiver,play,game.yard,2,formation));setAutoLead(true);
+    setCall(prev=>({...prev,formation}));setAim([routeAt(receiver,routes[receiver],formation,2)[0],game.yard+routeAt(receiver,routes[receiver],formation,2)[1]]);setAutoLead(true);
   };
   const chooseProtection=(protection:TacticalCall['protection'])=>{
     if(active||finished)return;
     setCall(prev=>({...prev,protection}));
-    if(protection==='max' && receiver===1){setReceiver(7);setAim(receiverPoint(7,play,game.yard,2,call.formation));}
+    if(protection==='max' && receiver===1){setReceiver(7);setAim(lead(7,2));}
   };
   const fullscreen=()=>{
     if(document.fullscreenElement)void document.exitFullscreen();
@@ -170,11 +185,11 @@ function App() {
       </div>
     </header>
     <div className="arena">
-      <Board3D yard={game.yard} toGo={game.toGo} defense={game.defense} play={play} view={view} call={call}
-        live={live} motion={motion} aim={aim} receiver={receiver}
-        onSelect={choose} onAim={point=>{setAutoLead(false);setAim(point);}}
-        onThrow={throwNow} onTick={onTick} onSack={sack}
-        onDone={()=>{if(motion)completePlay(motion.result);}}/>
+      <Board3D yard={game.yard} toGo={game.toGo} defense={game.defense} play={play} view={view} call={call} game={game}
+        live={live} motion={motion} aim={aim} receiver={receiver} routes={routes} drawTarget={drawing} throwRequest={throwRequest}
+        onSelect={choose} onAim={point=>{if(!throwing){setAutoLead(false);setAim(point);}}}
+        onDrawPoint={drawPoint} onThrow={throwNow} onTick={onTick} onCoverage={setCoverage}
+        onSpatialResult={completePlay} onDone={()=>{if(motion)completePlay(motion.result);}}/>
       <div className="screen-grain" aria-hidden="true"/>
       <div className="arena-header">
         <div className="down-flag"><b>{game.down}<sup>{game.down===1?'ST':game.down===2?'ND':game.down===3?'RD':'TH'}</sup> &amp; {game.toGo}</b><span>{fieldSpot(game.yard)}</span></div>
@@ -195,12 +210,22 @@ function App() {
         <div className="scheme-grid">{FORMATIONS.map(option=><button key={option.id} className={call.formation===option.id?'active':''} onClick={()=>chooseFormation(option.id)}><strong>{option.name}</strong><small>{option.detail}</small></button>)}</div>
         <label>PASS PROTECTION</label>
         <div className="scheme-grid">{PROTECTIONS.map(option=><button key={option.id} className={call.protection===option.id?'active':''} onClick={()=>chooseProtection(option.id)}><strong>{option.name}</strong><small>{option.detail}</small></button>)}</div>
+        <label>RECEIVER ROUTE DESIGN / {RECEIVERS.find(r=>r.id===routeEditor)?.label}</label>
+        <div className="route-players">{RECEIVERS.filter(r=>isEligible(r.id,call)).map(r=><button key={r.id} className={routeEditor===r.id?'active':''} onClick={()=>{setRouteEditor(r.id);setReceiver(r.id);setDrawing(null);}}>
+          #{r.number} {r.role}</button>)}</div>
+        <div className="route-presets">{ROUTE_OPTIONS.map(r=><button key={r.kind} className={routes[routeEditor].kind===r.kind&&!drawing?'active':''} onClick={()=>chooseRoute(r.kind)} title={r.description}>{r.name}</button>)}</div>
+        <div className="draw-tools">
+          <button className={drawing!==null?'drawing':''} onClick={()=>{setDrawing(routeEditor);setRoutes(prev=>({...prev,[routeEditor]:{kind:'custom',points:[]}}));}}><Crosshair size={15}/> {drawing!==null?'DRAWING — TAP FIELD':'DRAW CUSTOM ROUTE'}</button>
+          {drawing!==null&&<button onClick={()=>setDrawing(null)}>DONE DRAWING</button>}
+        </div>
+        <small className="route-explainer">{drawing!==null?'Tap the tabletop to add waypoints from the selected receiver. Add several points, then choose Done Drawing.':'Every receiver runs the route shown on the tabletop. Change any route, then snap and throw when separation develops.'}</small>
         <div className="sheet-footer"><span><Zap size={15}/> PROJECTED POCKET: <b>{pressure.toFixed(1)}s</b></span><span>{call.protection==='max'?'RB stays home to block':'ALL FIVE TARGETS ELIGIBLE'}</span></div>
-        <button className="sheet-done" onClick={()=>setTacticsOpen(false)}>SET THE PLAY <ArrowRight size={16}/></button>
+        <button className="sheet-done" onClick={()=>{setDrawing(null);setTacticsOpen(false);}}>SET THE PLAY <ArrowRight size={16}/></button>
       </div>}
       {live&&<div className="pressure-panel"><div className="pressure-heading"><span className="hot-dot"/> POCKET COLLAPSING <strong>{(pressure-elapsed).toFixed(1)}s</strong></div>
-        <div className="pressure-track"><i style={{width:progress+'%'}}/></div><small>CLICK THE FIELD TO PLACE YOUR THROW</small></div>}
-      {!active&&!finished&&!last&&<div className="floating-tip"><span className="keycap">SPACE</span> SNAP THE BALL <span className="tip-separator"/> THEN READ YOUR RECEIVERS</div>}
+        <div className="pressure-track"><i style={{width:progress+'%'}}/></div><small>{throwing?'FOOTBALL IN THE AIR — WATCH THE CATCH POINT':'THROW INTO REAL SPACE AS RECEIVERS BREAK OPEN'}</small></div>}
+      {drawing!==null&&!active&&<div className="drawing-tip">DRAWING #{RECEIVERS.find(r=>r.id===drawing)?.number} · TAP FIELD TO ADD ROUTE POINTS</div>}
+      {!active&&!finished&&!last&&drawing===null&&<div className="floating-tip"><span className="keycap">SPACE</span> SNAP THE BALL <span className="tip-separator"/> THEN READ YOUR RECEIVERS</div>}
       {motion&&<div className="action-hint"><span className="hot-dot"/> PLAY IN MOTION</div>}
       {last&&!active&&!finished&&<div className="play-result" key={last.state.plays}><span className={'grade grade-'+last.grade}>{last.grade}</span><div><strong>{last.description}</strong><small>{last.yards>=0?'+':''}{last.yards} YARDS · -{last.elapsed}s · {formatClock(game.seconds)} LEFT</small></div></div>}
       {finished&&<div className="finish-overlay"><span className="final-eyebrow">FINAL WHISTLE</span><h1>{game.status==='won'?'DRIVE COMPLETE.':game.status==='tied'?'ALL TIED UP.':'GAME OVER.'}</h1><p>{game.message}</p><button onClick={()=>reset()}><RotateCcw size={17}/> PLAY AGAIN</button></div>}
@@ -221,13 +246,13 @@ function App() {
       {live ? <>
         <div className="receiver-picker">
           {RECEIVERS.map((r,i)=><button disabled={!isEligible(r.id,call)} className={'receiver-choice '+(receiver===r.id?'selected':'')} key={r.id} onClick={()=>choose(r.id)}>
-            <kbd>{i+1}</kbd><span className="jersey">#{r.number}</span><b>{r.label}</b><small className={'receiver-status status-'+coverageRead(r.id,live.play,game.yard,elapsed+1.05,game.defense,call).color}>{isEligible(r.id,call)?coverageRead(r.id,live.play,game.yard,elapsed+1.05,game.defense,call).label:'BLOCKING'}</small>
+            <kbd>{i+1}</kbd><span className="jersey">#{r.number}</span><b>{r.label}</b><small className={'receiver-status status-'+((coverage[r.id]??0)>7?'green':(coverage[r.id]??0)>3.5?'amber':'red')}>{isEligible(r.id,call)?(coverage[r.id]===undefined?'READING':coverage[r.id]>7?'OPEN':coverage[r.id]>3.5?'WINDOW':'COVERED'):'BLOCKING'}</small>
           </button>)}
         </div>
         <div className="action-stack live-actions">
           <span className="action-label"><Crosshair size={13}/> {autoLead?'AUTO-LEADING':'MANUAL AIM'} · {selectedName}</span>
-          <button className="primary-action throw-action" onClick={()=>throwNow(aim)}><Target size={19}/> THROW NOW <kbd>SPACE</kbd></button>
-          <span className="action-foot">OR TAP ANYWHERE ON THE FIELD</span>
+          <button className="primary-action throw-action" disabled={throwing} onClick={()=>throwNow(aim)}><Target size={19}/> THROW NOW <kbd>SPACE</kbd></button>
+          <span className="action-foot">{throwing?'BALL RELEASED':'TAP THE FIELD TO LEAD YOUR TARGET'}</span>
         </div>
       </> : <>
         <div className="play-selector">
