@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowRight, ChevronDown, CircleHelp, Clock3, Crosshair, Eye, Flag, Fullscreen, Goal, Keyboard, RotateCcw, Shield, Target, TimerReset, Zap, SlidersHorizontal, X, ScanEye, ClipboardList } from 'lucide-react';
+import { ArrowRight, ChevronDown, CircleHelp, Clock3, Crosshair, Eye, Flag, Fullscreen, Goal, Keyboard, RotateCcw, Shield, Target, TimerReset, Zap, Gauge, SlidersHorizontal, X, ScanEye, ClipboardList } from 'lucide-react';
 import Board3D, { type Live, type Motion, type ThrowRequest } from './components/Board3D';
 import { SCENARIOS, PLAYS, fieldSpot, formatClock, initialGame, kickDistance, simulate, useTimeout, type GameState, type PlayId, type Result } from './logic/drill';
 import { RECEIVERS, passPlay, pressureLimit, type Point, type ReceiverId } from './logic/throwing';
@@ -23,6 +23,8 @@ function App() {
   const [routes,setRoutes]=useState<RouteBook>(()=>starterRoutes('quick'));
   const [drawing,setDrawing]=useState<ReceiverId|null>(null);
   const [coverage,setCoverage]=useState<Record<number,number>>({});
+  const [fps,setFps]=useState<number|null>(null);
+  const [quality,setQuality]=useState<'performance'|'balanced'|'high'>(()=>typeof window!=='undefined'&&window.matchMedia('(max-width: 760px)').matches?'performance':'balanced');
   const [throwRequest,setThrowRequest]=useState<ThrowRequest|null>(null);
   const [routeEditor,setRouteEditor]=useState<ReceiverId>(7);
   const [call,setCall]=useState<TacticalCall>({...DEFAULT_CALL});
@@ -39,6 +41,7 @@ function App() {
   const [help,setHelp]=useState(false);
   const [historyOpen,setHistoryOpen]=useState(false);
   const sequence=useRef(0);
+  const keyboardRef=useRef<(event:KeyboardEvent)=>void>(()=>{});
   const active=!!live||!!motion;
   const finished=game.status!=='playing';
   const pressure=pressureLimit(game.defense,call.protection);
@@ -86,16 +89,13 @@ function App() {
     if(!isEligible(id,call))return;
     setReceiver(id);setAutoLead(true);setAim(lead(id,live?elapsed+1:2));
   },[call,lead,live,elapsed]);
-  const throwNow=useCallback((point:Point,id?:ReceiverId)=>{
+  const throwNow=useCallback((point:Point,id?:ReceiverId,assisted=false)=>{
     if(!live||throwRequest)return;
     const selected=id??receiver;
     if(!isEligible(selected,call))return;
-    setThrowRequest({id:++sequence.current,point,receiver:selected});
+    setThrowRequest({id:++sequence.current,point,receiver:selected,assisted});
   },[live,throwRequest,receiver,call]);
-  const onTick=useCallback((seconds:number)=>{
-    setElapsed(seconds);
-    if(live&&autoLead&&!throwRequest)setAim(lead(receiver,seconds+.95));
-  },[live,autoLead,receiver,throwRequest,lead]);
+  const onTick=useCallback((seconds:number)=>setElapsed(seconds),[]);
   const chooseRoute=(kind:RouteKind)=>{
     if(active||finished)return;
     setDrawing(null);setRoutes(prev=>({...prev,[routeEditor]:{kind}}));
@@ -148,10 +148,11 @@ function App() {
       const element=event.target;
       if(element instanceof HTMLInputElement||element instanceof HTMLSelectElement||element instanceof HTMLTextAreaElement)return;
       if(event.code==='Escape'){setHelp(false);return;}
+      if(help)return;
       if(event.code==='Space'){
         event.preventDefault();
         if(event.repeat)return;
-        if(live)throwNow(aim);
+        if(live)throwNow(aim,undefined,true);
         else if(!active&&!finished)snap();
       }
       const digit=event.code.startsWith('Digit')?Number(event.code.slice(-1)):0;
@@ -163,9 +164,13 @@ function App() {
       if(event.code==='KeyV')setView(v=>v==='sideline'?'coach':'sideline');
       if(event.code==='KeyC'&&!active)setTacticsOpen(v=>!v);
     };
+    keyboardRef.current=listener;
+  });
+  useEffect(()=>{
+    const listener=(event:KeyboardEvent)=>keyboardRef.current(event);
     window.addEventListener('keydown',listener);
     return ()=>window.removeEventListener('keydown',listener);
-  });
+  },[]);
 
   const runPlay=!passPlay(play);
   return <div className="game-shell">
@@ -180,6 +185,7 @@ function App() {
         <label className="scenario-select"><span>SCENARIO</span><select value={scenarioId} disabled={active} onChange={e=>reset(e.target.value)}>
           {SCENARIOS.map(s=><option key={s.id} value={s.id}>{DRIVE_NAMES[s.id]}</option>)}
         </select><ChevronDown size={13}/></label>
+        <button className="quality-toggle" onClick={()=>setQuality(q=>q==='performance'?'balanced':q==='balanced'?'high':'performance')} title="Switch between performance, balanced and high graphics settings" aria-label={'Graphics: '+quality+', '+(fps??'--')+' FPS'}><Gauge size={15}/><span>{quality.toUpperCase()} · {fps??'--'} FPS</span></button>
         <button className="icon-button" aria-label="How to play" title="How to play" onClick={()=>setHelp(true)}><CircleHelp size={19}/></button>
         <button className="icon-button fullscreen-icon" aria-label="Full screen" title="Full screen" onClick={fullscreen}><Fullscreen size={18}/></button>
       </div>
@@ -188,7 +194,8 @@ function App() {
       <Board3D yard={game.yard} toGo={game.toGo} defense={game.defense} play={play} view={view} call={call} game={game}
         live={live} motion={motion} aim={aim} receiver={receiver} routes={routes} drawTarget={drawing} throwRequest={throwRequest}
         onSelect={choose} onAim={point=>{if(!throwing){setAutoLead(false);setAim(point);}}}
-        onDrawPoint={drawPoint} onThrow={throwNow} onTick={onTick} onCoverage={setCoverage}
+        onDrawPoint={drawPoint} onThrow={throwNow} onAutoThrow={id=>throwNow(aim,id,true)} onLead={setAim} assistAim={autoLead}
+        quality={quality} onFps={setFps} onTick={onTick} onCoverage={setCoverage}
         onSpatialResult={completePlay} onDone={()=>{if(motion)completePlay(motion.result);}}/>
       <div className="screen-grain" aria-hidden="true"/>
       <div className="arena-header">
@@ -232,7 +239,7 @@ function App() {
       <div className="drive-access"><button className={historyOpen?'opened':''} onClick={()=>setHistoryOpen(v=>!v)}><Flag size={14}/> DRIVE LOG <span>{feed.length}</span></button>
         {historyOpen&&<div className="drive-popover"><strong>THIS DRIVE</strong>{feed.length?feed.map(item=><div key={item.id}><b>{item.grade}</b><span>{item.label}<small>{formatClock(item.clock)} · {item.gain>=0?'+':''}{item.gain} YDS</small></span></div>):<p>YOUR DRIVE STARTS HERE.</p>}</div>}
       </div>
-      <div className="game-corner">VIBRA-BOWL / DIRECTOR'S CUT <span>·</span> V1.2</div>
+      <div className="game-corner">VIBRA-BOWL / OPTIMIZED GAME ENGINE <span>·</span> V2.1</div>
     </div>
 
     <section className={'control-deck '+(live?'deck-live':'')}>
@@ -251,8 +258,8 @@ function App() {
         </div>
         <div className="action-stack live-actions">
           <span className="action-label"><Crosshair size={13}/> {autoLead?'AUTO-LEADING':'MANUAL AIM'} · {selectedName}</span>
-          <button className="primary-action throw-action" disabled={throwing} onClick={()=>throwNow(aim)}><Target size={19}/> THROW NOW <kbd>SPACE</kbd></button>
-          <span className="action-foot">{throwing?'BALL RELEASED':'TAP THE FIELD TO LEAD YOUR TARGET'}</span>
+          <button className="primary-action throw-action" disabled={throwing} onClick={()=>throwNow(aim,undefined,true)}><Target size={19}/> THROW NOW <kbd>SPACE</kbd></button>
+          <span className="action-foot">{throwing?'BALL RELEASED':'CLICK A PLAYER TO THROW · OR AIM MANUALLY'}</span>
         </div>
       </> : <>
         <div className="play-selector">
