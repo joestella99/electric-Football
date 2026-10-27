@@ -178,3 +178,7 @@
 .receiver-choice.selected .status-red{background:#e7a090;color:#5a241e}
 .receiver-choice:disabled{opacity:.38;filter:grayscale(.6)}
 @media(max-width:650px){.receiver-choice small.receiver-status{font-size:9px;padding:2px 2px}}
+
+.sheet-scenario{width:100%;background:#274339;color:#f1d59e;border:1px solid #708475;padding:9px 12px;font:800 15px 'Barlow Condensed',sans-serif;letter-spacing:.4px;cursor:pointer}
+.sheet-scenario:focus-visible{outline:2px solid #e7bd69;outline-offset:2px}
+@media(max-height:630px){.sheet-scenario{padding:6px 10px;font-size:13px}}
