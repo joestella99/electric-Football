@@ -115,7 +115,7 @@ function Lines({yard,play,defense,visible}:{yard:number;play:PlayId;defense:Defe
   </group>;
 }
 
-function FigureMesh({figure,now,liveNow,motion,live,selectedReceiver}:{figure:Figure;now:React.RefObject<number>;liveNow:React.RefObject<number>;motion:Motion|null;live:Live|null;selectedReceiver:ReceiverId}) {
+function FigureMesh({figure,now,liveNow,motion,live,selectedReceiver,yard,defense}:{figure:Figure;now:React.RefObject<number>;liveNow:React.RefObject<number>;motion:Motion|null;live:Live|null;selectedReceiver:ReceiverId;yard:number;defense:Defense}) {
   const ref=useRef<THREE.Group>(null);
   const side=figure.side==='offense';
   const primary=side?OFF:DEF;
@@ -130,16 +130,28 @@ function FigureMesh({figure,now,liveNow,motion,live,selectedReceiver}:{figure:Fi
       let px=x,pz=z;
       if(side){
         if([1,7,8,9,10].includes(figure.id)){
-          [px,pz]=receiverPoint(figure.id as ReceiverId,live.play,z-(figure.id===1?-9:figure.id===9?-1:figure.id===10?-3.2:-2.1),t);
+          [px,pz]=receiverPoint(figure.id as ReceiverId,live.play,yard,t);
         }else if(figure.role==='QB')pz=z-Math.min(t*1.2,2);
         else { pz=z+Math.min(t*1.8,3.5);px=x+(figure.id%2?-.5:.5)*Math.min(t,2); }
       }else{
-        if(figure.role==='DB') [px,pz]=coveragePoint(figure.id-18,live.play==='deep'?'SOFT ZONE':'LOADED BOX',z-(figure.id>=18?(figure.id%2)*3+16:0),t);
+        if(figure.role==='DB') [px,pz]=coveragePoint(figure.id-18,defense,yard,t);
         else {pz=z-Math.min(t*(figure.role==='DL'?5.1:3.4),14);px=x+(figure.id%2?.55:-.55)*t;}
       }
       ref.current.position.set(px,.2+Math.abs(Math.sin(clock.elapsedTime*24+figure.id))*.075,clamp(pz,1,99));
     }else if(motion){
       const {play,yards}=motion.result;
+      if(motion.releaseAt!==undefined && passPlay(play)){
+        const t=motion.releaseAt+p*1.25;
+        if(side && [1,7,8,9,10].includes(figure.id)){
+          const [px,pz]=receiverPoint(figure.id as ReceiverId,play,yard,t);
+          ref.current.position.set(px,.2+Math.sin(clock.elapsedTime*18+figure.id)**2*.055,clamp(pz,1,99));
+          return;
+        }
+        if(!side && figure.role==='DB'){
+          const [px,pz]=coveragePoint(figure.id-18,defense,yard,t);
+          ref.current.position.set(px,.2,clamp(pz,1,99));return;
+        }
+      }
       if(side){
         if(figure.role==='OL'){dz=2+Math.min(2,p*3);dx=figure.id%2===0?.6:-.6;}
         else if(figure.role==='QB'){dz=play==='outside'?3:play==='inside'?1:-2;dx=play==='outside'?2:0;}
@@ -238,7 +250,7 @@ function Scene({yard,defense,selectedPlay,view,motion,live,aim,selectedReceiver,
     <Lines yard={displayYard} play={selectedPlay} defense={defense} visible={!motion&&!live}/>
     <ActionClock motion={motion} onDone={onDone} progress={progress}/>
     <LiveClock live={live} defense={defense} elapsed={liveNow} onTick={onTick} onSack={onSack}/>
-    {figures.map(figure=><FigureMesh key={figure.id} figure={figure} now={progress} liveNow={liveNow} motion={motion} live={live} selectedReceiver={selectedReceiver}/>)}
+    {figures.map(figure=><FigureMesh key={figure.id} figure={figure} now={progress} liveNow={liveNow} motion={motion} live={live} selectedReceiver={selectedReceiver} yard={displayYard} defense={defense}/>)}
     <Football yard={displayYard} motion={motion} now={progress}/>
     {live && passPlay(live.play) && <>
       <Line points={[[0,2.7,displayYard-5],[aim[0],.8,aim[1]]]} color="#f8c65e" transparent opacity={.65} lineWidth={1} dashed dashSize={1.1} gapSize={.6}/>
