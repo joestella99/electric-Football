@@ -16,7 +16,6 @@ type Props = {
   onSack: (seconds: number) => void; onDone: () => void;
 };
 const clip = (v: number,lo:number,hi:number)=>Math.max(lo,Math.min(hi,v));
-const pY = .44;
 const O = '#f5d58e', D = '#d9634b';
 const ballGeometry = new THREE.SphereGeometry(.58,10,8);
 
