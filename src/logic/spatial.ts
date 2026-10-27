@@ -67,6 +67,7 @@ export const routeVertices=(id:ReceiverId,spec:RouteSpec,formation:TacticalCall[
   case 'drag':return [[x,z],v(inside*8,4),v(inside*23,7),v(inside*34,9)];
   case 'flat':return [[x,z],v(outside*7,2),v(outside*13,5),v(outside*13,5)];
   case 'wheel':return [[x,z],v(outside*11,5),v(outside*14,16),v(outside*14,39)];
+  default:return [[x,z],v(0,10)];
  }
 };
 export function routeAt(id:ReceiverId,spec:RouteSpec,formation:TacticalCall['formation'],seconds:number):Point{
@@ -119,7 +120,7 @@ function updateActors(w:World,dt:number){
   } else if(a.role==='OL'){
     // Each lineman engages a specific advancing rusher; protection changes pass-rush lanes.
     const rusher=defenders.find(d=>d.id===11+(a.id-2)%4);
-    const block=rusher?[rusher.x,w.yard+1.7] as Point:[a.x,w.yard+2];
+    const block:Point=rusher?[rusher.x,w.yard+1.7]:[a.x,w.yard+2];
     approach(a,block,dt,3.2);
   } else if(a.role==='QB'){
     approach(a,[0,w.yard-6],dt,.6);
