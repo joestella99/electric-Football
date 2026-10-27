@@ -1,3 +1,5 @@
+import { DEFAULT_CALL, matchingBonus, type TacticalCall } from './tactics.ts';
+
 export type PlayId = 'inside' | 'outside' | 'quick' | 'sideline' | 'deep' | 'screen' | 'spike' | 'fieldgoal';
 export type Defense = 'BLITZ' | 'LOADED BOX' | 'SOFT ZONE';
 export type Tempo = 'hurry' | 'huddle';
@@ -85,7 +87,7 @@ function selectionGrade(play: PlayId, state: GameState): Result['grade'] {
  * Original arcade resolution model, not a historical NFL-data predictor.
  * Inject random() for repeatable tests. Clock only advances on calls, not while browsing the playbook.
  */
-export function simulate(s: GameState, play: PlayId, tempo: Tempo, random: () => number = Math.random): Result {
+export function simulate(s: GameState, play: PlayId, tempo: Tempo, random: () => number = Math.random, call: TacticalCall = DEFAULT_CALL): Result {
   if (s.status !== 'playing') throw new Error('Drive has ended');
   const grade = selectionGrade(play, s);
   const setup = s.clockRunning ? (tempo === 'hurry' ? 7 : 16) : 0;
@@ -130,8 +132,8 @@ export function simulate(s: GameState, play: PlayId, tempo: Tempo, random: () =>
     description = name + '. PASS FALLS INCOMPLETE.';
   } else {
     const roll = random();
-    if (play === 'inside') yards = Math.round(-2 + roll * 9 + (soft ? 3 : 0) - (loaded ? 2 : 0));
-    else if (play === 'outside') yards = Math.round(-3 + roll * 16 + (loaded ? 2 : 0));
+    if (play === 'inside') yards = Math.round(-2 + roll * 9 + (soft ? 3 : 0) - (loaded ? 2 : 0) + (call.formation === 'spread' ? 1 : -1));
+    else if (play === 'outside') yards = Math.round(-3 + roll * 16 + (loaded ? 2 : 0) + (call.formation === 'trips' ? 2 : 0) + Math.round(matchingBonus(play,s.defense,call)*12));
     else if (play === 'quick') yards = Math.round(3 + roll * 10 + (blitz ? 3 : 0));
     else if (play === 'sideline') yards = Math.round(5 + roll * 15);
     else if (play === 'deep') yards = Math.round(15 + roll * 27 - (soft ? 5 : 0));
