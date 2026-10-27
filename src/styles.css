@@ -203,3 +203,9 @@
  .sheet-footer{flex-wrap:wrap}
 }
 @media(max-height:690px){.route-presets button{padding:5px 2px}.route-players button{padding:5px 2px}.draw-tools button{padding:5px}.route-explainer{display:none}}
+
+.drawing-tip{display:flex;align-items:center;gap:13px;pointer-events:auto}
+.drawing-tip>button{border:1px solid #ffebba;background:#ffdd8c;color:#273b32;font:900 12px 'Barlow Condensed',sans-serif;letter-spacing:.5px;padding:8px 11px;display:flex;gap:4px;align-items:center;white-space:nowrap}
+.drawing-tip>button:hover{background:#fff6cb}
+@media(max-width:650px){.drawing-tip{width:calc(100% - 18px);font-size:10px;gap:6px;white-space:normal;justify-content:space-between}
+.drawing-tip>span{max-width:190px}.drawing-tip>button{padding:7px;font-size:11px}}
