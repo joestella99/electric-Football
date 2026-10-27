@@ -3,12 +3,14 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { Line, OrbitControls, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import type { Defense, PlayId, Result } from '../logic/drill';
+import { receiverPoint, coveragePoint, passPlay, pressureLimit, type Point, type ReceiverId } from '../logic/throwing';
 
-export type Motion = { id: number; result: Result; startYard: number };
-type Props = { yard: number; defense: Defense; selectedPlay: PlayId; view: 'angled' | 'top'; motion: Motion | null; onDone: () => void };
+export type Motion = { id: number; result: Result; startYard: number; aim?: Point; releaseAt?: number };
+export type Live = { id: number; play: PlayId };
+type Props = { yard: number; defense: Defense; selectedPlay: PlayId; view: 'angled' | 'top'; motion: Motion | null; live: Live | null; aim: Point; selectedReceiver: ReceiverId; onAim: (p: Point) => void; onThrow: (p: Point) => void; onTick: (s: number) => void; onSack: (s: number) => void; onDone: () => void };
 
 type Figure = { id: number; side: 'offense' | 'defense'; position: [number, number]; number: number; role: string };
-const GOLD = '#f9ca66', OFF = '#ead29e', DEF = '#c74c43', INK = '#193a39';
+const GOLD = '#f9ca66', OFF = '#ead29e', DEF = '#c74c43';
 const formation = (yard: number, defense: Defense): Figure[] => {
   const o: Figure[] = [
     { id: 0, role: 'QB', number: 12, position: [0, yard - 5], side: 'offense' },
@@ -81,7 +83,7 @@ function Goalpost({ z }: {z:number}) {
   </group>;
 }
 
-function CameraControls({view,yard}:{view:Props['view'];yard:number}) {
+function CameraControls({view,yard,locked}:{view:Props['view'];yard:number;locked:boolean}) {
   const controls=useRef<any>(null);
   const targetY=clamp(yard+10,28,78);
   useEffect(()=>{
@@ -94,7 +96,7 @@ function CameraControls({view,yard}:{view:Props['view'];yard:number}) {
     cam.lookAt(0,0,targetY);
     c.update();
   },[view,targetY]);
-  return <OrbitControls ref={controls} makeDefault enablePan={false} minDistance={34} maxDistance={144} maxPolarAngle={Math.PI/2.15} minPolarAngle={.22} target={[0,0,targetY]}/>;
+  return <OrbitControls ref={controls} makeDefault enabled={!locked} enablePan={false} minDistance={34} maxDistance={144} maxPolarAngle={Math.PI/2.15} minPolarAngle={.22} target={[0,0,targetY]}/>;
 }
 
 function Lines({yard,play,defense,visible}:{yard:number;play:PlayId;defense:Defense;visible:boolean}) {
@@ -113,7 +115,7 @@ function Lines({yard,play,defense,visible}:{yard:number;play:PlayId;defense:Defe
   </group>;
 }
 
-function FigureMesh({figure,now,motion}:{figure:Figure;now:React.RefObject<number>;motion:Motion|null}) {
+function FigureMesh({figure,now,liveNow,motion,live,selectedReceiver}:{figure:Figure;now:React.RefObject<number>;liveNow:React.RefObject<number>;motion:Motion|null;live:Live|null;selectedReceiver:ReceiverId}) {
   const ref=useRef<THREE.Group>(null);
   const side=figure.side==='offense';
   const primary=side?OFF:DEF;
@@ -123,30 +125,39 @@ function FigureMesh({figure,now,motion}:{figure:Figure;now:React.RefObject<numbe
     const p=now.current??0;
     const [x,z]=figure.position;
     let dx=0,dz=0;
-    if(motion){
+    if(live && !motion){
+      const t=liveNow.current;
+      let px=x,pz=z;
+      if(side){
+        if([1,7,8,9,10].includes(figure.id)){
+          [px,pz]=receiverPoint(figure.id as ReceiverId,live.play,z-(figure.id===1?-9:figure.id===9?-1:figure.id===10?-3.2:-2.1),t);
+        }else if(figure.role==='QB')pz=z-Math.min(t*1.2,2);
+        else { pz=z+Math.min(t*1.8,3.5);px=x+(figure.id%2?-.5:.5)*Math.min(t,2); }
+      }else{
+        if(figure.role==='DB') [px,pz]=coveragePoint(figure.id-18,live.play==='deep'?'SOFT ZONE':'LOADED BOX',z-(figure.id>=18?(figure.id%2)*3+16:0),t);
+        else {pz=z-Math.min(t*(figure.role==='DL'?5.1:3.4),14);px=x+(figure.id%2?.55:-.55)*t;}
+      }
+      ref.current.position.set(px,.2+Math.abs(Math.sin(clock.elapsedTime*24+figure.id))*.075,clamp(pz,1,99));
+    }else if(motion){
       const {play,yards}=motion.result;
       if(side){
         if(figure.role==='OL'){dz=2+Math.min(2,p*3);dx=figure.id%2===0?.6:-.6;}
         else if(figure.role==='QB'){dz=play==='outside'?3:play==='inside'?1:-2;dx=play==='outside'?2:0;}
         else if(figure.role==='RB'){
           dx=play==='outside'?13:play==='screen'?11:0; dz=play==='inside'||play==='outside'?yards+8:play==='screen'?yards+7:2;
-        }
-        else {
-          const wrIndex=figure.id-7;
+        }else{
           dx=play==='quick'?(x>0?-6:6):play==='sideline'?x>0?2:-2:play==='deep'?(x>0?3:-3):2;
-          dz=play==='deep'?Math.max(19,yards):play==='sideline'?14:play==='quick'?9:play==='screen'?4:7;
-          if(wrIndex===3)dz+=2;
+          dz=play==='deep'?Math.max(19,yards):play==='sideline'?14:play==='quick'?9:7;
         }
-      } else {
-        const look=figure.role==='DL'?.9:figure.role==='LB'?.7:.3;
-        dz=-(3+look*7);
-        if(motion.result.complete && figure.role==='DB') dz=-Math.min(11,Math.abs(yards)*.38);
+      }else{
+        dz=-(3+(figure.role==='DL'?.9:figure.role==='LB'?.7:.3)*7);
         dx=(figure.id%2===0?-1:1)*1.4;
       }
-      ref.current.position.set(x+dx*p, .2+Math.abs(Math.sin(clock.elapsedTime*26+figure.id))*.055*p,clamp(z+dz*p,1,99));
+      ref.current.position.set(x+dx*p,.2+Math.abs(Math.sin(clock.elapsedTime*26+figure.id))*.055*p,clamp(z+dz*p,1,99));
     }else ref.current.position.set(x,.2,clamp(z,1,99));
   });
   return <group ref={ref} rotation={[0,side?0:Math.PI,0]}>
+    {side && figure.id === selectedReceiver && <mesh position={[0,.18,0]} rotation={[-Math.PI/2,0,0]}><ringGeometry args={[1.35,1.65,20]}/><meshBasicMaterial color="#fff098" side={THREE.DoubleSide}/></mesh>}
     <mesh position={[0,.18,0]} castShadow><boxGeometry args={[2.15,.38,1.75]}/><meshStandardMaterial color={side?'#be8b38':'#9c2925'} roughness={.38}/></mesh>
     <mesh position={[0,.4,0]}><boxGeometry args={[1.72,.13,1.28]}/><meshStandardMaterial color="#342b23" roughness={.85}/></mesh>
     {[-.48,.48].map(x=><group key={x}>
@@ -173,8 +184,8 @@ function Football({yard,motion,now}:{yard:number;motion:Motion|null;now:React.Re
     const p=now.current??0;
     if(!motion){ref.current.position.set(0,2.7,yard-5);return;}
     const {play,yards,complete}=motion.result;
-    const toX=play==='outside'?16:play==='deep'?18:play==='sideline'?-21:play==='screen'?16:play==='inside'?3:-12;
-    const toZ=clamp(yard+yards,1,100);
+    const toX=motion.aim?.[0] ?? (play==='outside'?16:play==='deep'?18:play==='sideline'?-21:play==='screen'?16:play==='inside'?3:-12);
+    const toZ=motion.aim?.[1] ?? clamp(yard+yards,1,100);
     const fromZ=yard-5;
     const flight=play==='fieldgoal'?13:play==='deep'?8:play==='inside'||play==='outside'?1.3:4;
     ref.current.position.set(toX*p,2.8+Math.sin(p*Math.PI)*flight,fromZ+(toZ-fromZ)*p);
@@ -196,8 +207,23 @@ function ActionClock({motion,onDone,progress}:{motion:Motion|null;onDone:()=>voi
   return null;
 }
 
-function Scene({yard,defense,selectedPlay,view,motion,onDone}:Props) {
+function LiveClock({live,defense,elapsed,onTick,onSack}:{live:Live|null;defense:Defense;elapsed:React.RefObject<number>;onTick:(seconds:number)=>void;onSack:(seconds:number)=>void}) {
+  const fired=useRef(false);
+  const last=useRef(-1);
+  useEffect(()=>{elapsed.current=0;fired.current=false;last.current=-1;},[live?.id,elapsed]);
+  useFrame((_,delta)=>{
+    if(!live || fired.current)return;
+    elapsed.current=Math.min(pressureLimit(defense),elapsed.current+Math.min(.08,delta));
+    const tenths=Math.floor(elapsed.current*10);
+    if(tenths!==last.current){last.current=tenths;onTick(elapsed.current);}
+    if(elapsed.current>=pressureLimit(defense)){fired.current=true;onSack(elapsed.current);}
+  });
+  return null;
+}
+
+function Scene({yard,defense,selectedPlay,view,motion,live,aim,selectedReceiver,onAim,onThrow,onTick,onSack,onDone}:Props) {
   const progress=useRef(0);
+  const liveNow=useRef(0);
   const displayYard=motion?.startYard??yard;
   const figures=formation(displayYard,defense);
   return <>
@@ -209,16 +235,29 @@ function Scene({yard,defense,selectedPlay,view,motion,onDone}:Props) {
     <mesh rotation={[-Math.PI/2,0,0]} position={[0,-2.75,50]}><planeGeometry args={[250,250]}/><meshStandardMaterial color="#151c1b" roughness={1}/></mesh>
     <Frame/>
     <Goalpost z={102}/>
-    <Lines yard={displayYard} play={selectedPlay} defense={defense} visible={!motion}/>
+    <Lines yard={displayYard} play={selectedPlay} defense={defense} visible={!motion&&!live}/>
     <ActionClock motion={motion} onDone={onDone} progress={progress}/>
-    {figures.map(figure=><FigureMesh key={figure.id} figure={figure} now={progress} motion={motion}/>)}
+    <LiveClock live={live} defense={defense} elapsed={liveNow} onTick={onTick} onSack={onSack}/>
+    {figures.map(figure=><FigureMesh key={figure.id} figure={figure} now={progress} liveNow={liveNow} motion={motion} live={live} selectedReceiver={selectedReceiver}/>)}
     <Football yard={displayYard} motion={motion} now={progress}/>
-    <CameraControls view={view} yard={displayYard}/>
+    {live && passPlay(live.play) && <>
+      <Line points={[[0,2.7,displayYard-5],[aim[0],.8,aim[1]]]} color="#f8c65e" transparent opacity={.65} lineWidth={1} dashed dashSize={1.1} gapSize={.6}/>
+      <group position={[aim[0],.55,aim[1]]}>
+        <mesh rotation={[-Math.PI/2,0,0]}><ringGeometry args={[1.25,1.59,24]}/><meshBasicMaterial color="#ffe196" side={THREE.DoubleSide} depthTest={false}/></mesh>
+        <mesh><sphereGeometry args={[.3,8,6]}/><meshBasicMaterial color="#fff2b6" depthTest={false}/></mesh>
+      </group>
+      <mesh rotation={[-Math.PI/2,0,0]} position={[0,4.3,50]}
+        onPointerMove={e=>{e.stopPropagation();onAim([clamp(e.point.x,-25,25),clamp(e.point.z,1,99)]);}}
+        onPointerDown={e=>{e.stopPropagation();onThrow([clamp(e.point.x,-25,25),clamp(e.point.z,1,99)]);}}>
+        <planeGeometry args={[53,100]}/><meshBasicMaterial transparent opacity={0} depthWrite={false} side={THREE.DoubleSide}/>
+      </mesh>
+    </>}
+    <CameraControls view={view} yard={displayYard} locked={!!live}/>
   </>;
 }
 
 export default function Board3D(props: Props) {
-  return <Canvas dpr={[.8,1]} gl={{antialias:false,alpha:false,powerPreference:'high-performance'}} shadows={false}
+  return <Canvas dpr={[.6,.9]} gl={{antialias:false,alpha:false,powerPreference:'high-performance'}} shadows={false}
     camera={{position:[43,59,props.yard-32],fov:49,near:.1,far:400}} style={{width:'100%',height:'100%',imageRendering:'pixelated'}}
     fallback={<div className="canvas-fallback">3D requires WebGL. Try a modern browser with hardware acceleration.</div>}>
     <Scene {...props}/>
