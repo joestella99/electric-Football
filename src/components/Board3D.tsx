@@ -21,7 +21,7 @@ type Props = {
   live: Live | null; motion: Motion | null; aim: Point; receiver: ReceiverId;
   onAim: (point: Point) => void; onThrow: (point: Point, id?: ReceiverId) => void;
   onSelect: (id: ReceiverId) => void; onTick: (seconds: number) => void;
-  onSack: (seconds: number) => void; onDone: () => void;
+  onDone: () => void;
 };
 const clip = (v: number,lo:number,hi:number)=>Math.max(lo,Math.min(hi,v));
 const O = '#f5d58e', D = '#d9634b';
