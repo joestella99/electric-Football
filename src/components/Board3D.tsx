@@ -157,7 +157,7 @@ function Routes({yard,play,receiver}:{yard:number;play:PlayId;receiver:ReceiverI
       const [x,z]=receiverPoint(r.id,play,yard,i*.34);
       return [x,.61,z] as [number,number,number];
     });
-    return <Line key={r.id} points={points} color={r.id===receiver?'#ffe09a':'#b7dcac'} opacity={r.id===receiver?.95:.36} transparent lineWidth={1.5} dashed dashSize={.7} gapSize={.45}/>;
+    return <Line key={r.id} points={points} color={r.id===receiver?'#ffe09a':'#b7dcac'} opacity={r.id === receiver ? .95 : .36} transparent lineWidth={1.5} dashed dashSize={.7} gapSize={.45}/>;
   })}</group>;
 }
 function Clock({live,motion,defense,elapsed,progress,onTick,onSack,onDone}:{live:Live|null;motion:Motion|null;defense:Defense;elapsed:React.RefObject<number>;progress:React.RefObject<number>;onTick:(n:number)=>void;onSack:(n:number)=>void;onDone:()=>void}){
