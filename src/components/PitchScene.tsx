@@ -138,7 +138,7 @@ function PlayerMarker({ player, opponent = false, selected = false, showPressure
     event.stopPropagation();
     onSelect?.(player.id);
     onDragging?.(player.id);
-    event.target.setPointerCapture(event.pointerId);
+    (event.target as HTMLElement | null)?.setPointerCapture(event.pointerId);
   };
   const handleMove = (event: ThreeEvent<PointerEvent>) => {
     if (!dragging || opponent) return;
@@ -152,8 +152,9 @@ function PlayerMarker({ player, opponent = false, selected = false, showPressure
     if (opponent) return;
     event.stopPropagation();
     onDragging?.(null);
-    if (event.target.hasPointerCapture(event.pointerId)) {
-      event.target.releasePointerCapture(event.pointerId);
+    const target = event.target as HTMLElement | null;
+    if (target?.hasPointerCapture(event.pointerId)) {
+      target.releasePointerCapture(event.pointerId);
     }
   };
   const color = opponent ? AWAY : HOME;
