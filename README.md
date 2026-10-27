@@ -5,6 +5,18 @@ Inspired by classic electric tabletop football and the decision-making stakes of
 
 **Play:** https://joestella99.github.io/electric-Football/
 
+## The immersive v1.1 rebuild
+
+The game is designed as a **single-screen experience**: the scoreboard is always visible, the miniature tabletop is the main focus, and the fixed bottom dock switches between playcalling and quarterback controls. There is no separate page to scroll through to find receivers or actions.
+
+- **Auto-follow camera:** tracks the active line of scrimmage and pushes upfield as receivers progress; tap FIELD or TACTICAL to change angle.
+- **Direct in-field play:** click or tap anywhere on the board to aim and throw during live passing plays.
+- **On-field receiver tags:** select targets in the 3D scene or by the fixed receiver buttons, or press keys 1–5.
+- **Readable routes:** selected receiver routes remain highlighted while you read the defense.
+- **Timed pocket:** different defensive looks produce different pass-pressure windows.
+- **Actual running clock between plays:** a completed in-bounds catch keeps the timer running until you snap, spike or call timeout.
+- **No page scrolling:** play cards fit in a fixed dock, including on phone-sized screens.
+
 ## Play
 
 - Start one of three late-game drives with score, clock, timeouts, down and distance.
