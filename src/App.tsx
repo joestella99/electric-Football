@@ -215,7 +215,7 @@ function App() {
           #{r.number} {r.role}</button>)}</div>
         <div className="route-presets">{ROUTE_OPTIONS.map(r=><button key={r.kind} className={routes[routeEditor].kind===r.kind&&!drawing?'active':''} onClick={()=>chooseRoute(r.kind)} title={r.description}>{r.name}</button>)}</div>
         <div className="draw-tools">
-          <button className={drawing!==null?'drawing':''} onClick={()=>{setDrawing(routeEditor);setRoutes(prev=>({...prev,[routeEditor]:{kind:'custom',points:[]}}));}}><Crosshair size={15}/> {drawing!==null?'DRAWING — TAP FIELD':'DRAW CUSTOM ROUTE'}</button>
+          <button className={drawing!==null?'drawing':''} onClick={()=>{setDrawing(routeEditor);setTacticsOpen(false);setRoutes(prev=>({...prev,[routeEditor]:{kind:'custom',points:[]}}));}}><Crosshair size={15}/> {drawing!==null?'DRAWING — TAP FIELD':'DRAW CUSTOM ROUTE'}</button>
           {drawing!==null&&<button onClick={()=>setDrawing(null)}>DONE DRAWING</button>}
         </div>
         <small className="route-explainer">{drawing!==null?'Tap the tabletop to add waypoints from the selected receiver. Add several points, then choose Done Drawing.':'Every receiver runs the route shown on the tabletop. Change any route, then snap and throw when separation develops.'}</small>
@@ -224,7 +224,7 @@ function App() {
       </div>}
       {live&&<div className="pressure-panel"><div className="pressure-heading"><span className="hot-dot"/> POCKET COLLAPSING <strong>{(pressure-elapsed).toFixed(1)}s</strong></div>
         <div className="pressure-track"><i style={{width:progress+'%'}}/></div><small>{throwing?'FOOTBALL IN THE AIR — WATCH THE CATCH POINT':'THROW INTO REAL SPACE AS RECEIVERS BREAK OPEN'}</small></div>}
-      {drawing!==null&&!active&&<div className="drawing-tip">DRAWING #{RECEIVERS.find(r=>r.id===drawing)?.number} · TAP FIELD TO ADD ROUTE POINTS</div>}
+      {drawing!==null&&!active&&<div className="drawing-tip"><span>DRAWING #{RECEIVERS.find(r=>r.id===drawing)?.number} · TAP FIELD FOR WAYPOINTS</span><button onClick={()=>setDrawing(null)}>FINISH ROUTE <ArrowRight size={14}/></button></div>}
       {!active&&!finished&&!last&&drawing===null&&<div className="floating-tip"><span className="keycap">SPACE</span> SNAP THE BALL <span className="tip-separator"/> THEN READ YOUR RECEIVERS</div>}
       {motion&&<div className="action-hint"><span className="hot-dot"/> PLAY IN MOTION</div>}
       {last&&!active&&!finished&&<div className="play-result" key={last.state.plays}><span className={'grade grade-'+last.grade}>{last.grade}</span><div><strong>{last.description}</strong><small>{last.yards>=0?'+':''}{last.yards} YARDS · -{last.elapsed}s · {formatClock(game.seconds)} LEFT</small></div></div>}
