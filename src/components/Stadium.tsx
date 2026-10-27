@@ -23,7 +23,7 @@ function Spectators({side,color,offset}:{side:number;color:string;offset:number}
     <boxGeometry args={[1.25,1.25,1.25]}/><meshStandardMaterial color={color} roughness={.88} metalness={0}/>
   </instancedMesh>;
 }
-export function StadiumDiorama(){
+export function StadiumDiorama({crowd=true}:{crowd?:boolean}){
   return <group>
     {[-1,1].map(side=><group key={side}>
       <mesh position={[side*39.5,1.15,50]}><boxGeometry args={[19,3.4,114]}/><meshStandardMaterial color="#1b2424" metalness={.24} roughness={.75}/></mesh>
@@ -35,7 +35,7 @@ export function StadiumDiorama(){
           <boxGeometry args={[.11,.36,108]}/><meshStandardMaterial color="#c5ac6d" metalness={.71} roughness={.24}/>
         </mesh>
       </group>)}
-      <Spectators side={side} color={side===1?'#b9a271':'#a78b79'} offset={side}/>
+      {crowd&&<Spectators side={side} color={side===1?'#b9a271':'#a78b79'} offset={side}/>}
       {[10,30,50,70,90].map((z,i)=><group key={z}>
         <mesh position={[side*29.8,1.6,z]}><boxGeometry args={[.22,1.1,16]}/><meshStandardMaterial emissive={i%2?'#c44b31':'#dfb75b'} emissiveIntensity={.42} color={i%2?'#aa4938':'#eacb83'} roughness={.45}/></mesh>
         <mesh position={[side*29.94,1.66,z]}><boxGeometry args={[.055,.1,13]}/><meshBasicMaterial color="#f4e3ba"/></mesh>
@@ -53,7 +53,6 @@ export function StadiumDiorama(){
       <mesh position={[0,26,0]} rotation={[0,0,x*.35]}>
         <boxGeometry args={[5,1.3,3]}/><meshStandardMaterial color="#d7b977" emissive="#b89453" emissiveIntensity={.4} metalness={.5}/>
       </mesh>
-      <pointLight position={[0,25,0]} color="#ffe5b8" intensity={30} distance={75} decay={2}/>
     </group>))}
     <mesh position={[0,-3,50]} receiveShadow><boxGeometry args={[150,1,180]}/><meshStandardMaterial color="#191d1b" roughness={.85}/></mesh>
   </group>;
