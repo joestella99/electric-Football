@@ -5,6 +5,21 @@ Inspired by classic electric tabletop football and the decision-making stakes of
 
 **Play:** https://joestella99.github.io/electric-Football/
 
+## V2 — The live route / catch-point engine
+
+**The passing game is no longer a probability roll.** All 22 miniature players share one continuously updated spatial model. Receiver routes are interpolated through coach-selected waypoints; defenders pursue and adjust to them; rushers compress the pocket; the thrown ball has a visible flight path and landing point.
+
+- **Design routes:** In the Coach's Board, select any eligible receiver and pick Slant, Out, Dig, Go, Post, Corner, Curl, Drag, Flat or Wheel.
+- **Draw routes on the actual board:** choose Draw Custom Route, tap the field to add up to five waypoints, then finish the route. Mobile editing remains on the same screen.
+- **Play the coverage, not a prerecorded outcome:** press Snap; routes and defenders move in one coordinate system. During the play, on-field receiver labels reflect current separation.
+- **Throw at the break:** lead the chosen player using Space or click/tap an exact field location. The football travels to the chosen spot over measurable flight time while both teams continue moving.
+- **Deterministic catches:** the ball is caught only when the intended receiver reaches its landing point. A defender can contest, break up or intercept if they get there before the receiver. An inaccurate ball misses. No completion/incompletion randomizer decides live passes.
+- **Physical pocket progression:** pass rushers advance against the blocking line and can sack the quarterback; protection schemes change the pursuit.
+- **Visual feedback:** moving receivers and defenders, animated football trail, contact landing ring, shadowed figures, diorama lighting and field camera.
+
+### Scope / caveats
+This is a deterministic, original **arcade spatial engine**, not full football physics or an NFL tracking-data product. Pursuit, blocking and collision radii are intentionally simplified. Defender coverage is not a trained NFL model; there is no weather, fatigue, realistic ball spin, possession turnovers outside the implemented play engine or full opponent offense. Realistic tackling, route-breaking animations, sophisticated zone matching and playbook breadth are still future improvements.
+
 ## V1.3 — Coach's Cut
 
 This iteration shifts the game toward decisions a real offensive coach would recognize, while retaining its intentionally miniature, arcade-style presentation.
