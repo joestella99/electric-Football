@@ -90,6 +90,7 @@ function Field({yard,toGo}:{yard:number;toGo:number}){
 }
 function Figure({number,side,x,z,role,living,select}:{number:number;side:'o'|'d';x:number;z:number;role:string;living:boolean;select:boolean}){
   return <group position={[x,0,z]} rotation={[0,side==='o'?0:Math.PI,0]}>
+    <mesh position={[0,.401,0]} rotation={[-Math.PI/2,0,0]}><circleGeometry args={[1.34,18]}/><meshBasicMaterial color="#101c18" transparent opacity={.33} depthWrite={false}/></mesh>
     <mesh position={[0,.51,0]}><boxGeometry args={[1.84,.30,1.62]}/><meshStandardMaterial color={side==='o'?'#b78031':'#9c3029'} roughness={.39}/></mesh>
     {[.67,-.67].map(e=><mesh key={e} position={[e,.22,0]}><boxGeometry args={[.2,.13,1.75]}/><meshStandardMaterial color="#292621" roughness={.94}/></mesh>)}
     {select&&<mesh position={[0,.67,0]} rotation={[-Math.PI/2,0,0]}><ringGeometry args={[1.2,1.49,24]}/><meshBasicMaterial color="#fff2ac" depthTest={false} side={THREE.DoubleSide}/></mesh>}
@@ -235,11 +236,51 @@ function SpatialBall({world}:{world:World}){
     <meshStandardMaterial color="#864123" roughness={.56}/>
   </mesh>;
 }
+function CatchFlash({world}:{world:World}){
+  const ring=useRef<THREE.Mesh>(null);
+  useFrame(({clock})=>{
+    if(!ring.current)return;
+    ring.current.visible=!!world.outcome&&!!world.flight;
+    if(!world.outcome||!world.flight)return;
+    const [x,z]=world.flight.target;
+    ring.current.position.set(x,.97,z);
+    const pulse=1.2+(Math.sin(clock.elapsedTime*13)+1)*.2;
+    ring.current.scale.setScalar(pulse);
+    const material=ring.current.material as THREE.MeshBasicMaterial;
+    material.color.set(world.outcome.kind==='catch'?'#b9f19b':world.outcome.kind==='interception'?'#ef735c':'#ffe08f');
+  });
+  return <mesh ref={ring} visible={false} rotation={[-Math.PI/2,0,0]}>
+    <ringGeometry args={[1.1,1.47,24]}/><meshBasicMaterial color="#ffe09a" side={THREE.DoubleSide} transparent opacity={.95} depthTest={false}/>
+  </mesh>;
+}
+function BallTrail({world}:{world:World}){
+  const ref=useRef<THREE.Group>(null);
+  useFrame(()=>{
+    if(!ref.current)return;
+    const flight=world.flight;
+    ref.current.visible=!!flight&&world.phase==='flight';
+    if(!flight)return;
+    const p=flight.elapsed/flight.duration;
+    for(let i=0;i<ref.current.children.length;i++){
+      const fraction=Math.max(0,p-(i+1)*.035);
+      const arc=Math.sin(Math.PI*fraction)*Math.min(8.5,2.5+Math.hypot(flight.target[0]-flight.from[0],flight.target[1]-flight.from[1])*.15);
+      ref.current.children[i].position.set(
+        flight.from[0]+(flight.target[0]-flight.from[0])*fraction,
+        2.5+arc,
+        flight.from[1]+(flight.target[1]-flight.from[1])*fraction
+      );
+    }
+  });
+  return <group ref={ref} visible={false}>{[.19,.15,.12,.09,.06].map((size,i)=><mesh key={i}>
+    <sphereGeometry args={[size,8,6]}/><meshBasicMaterial color={i<2?'#f2d49d':'#d7a66d'} transparent opacity={.72-i*.11} depthWrite={false}/>
+  </mesh>)}</group>;
+}
 function SpatialClock({world,request,game,onTick,onCoverage,onSpatialResult,elapsed}:{world:World;request:ThrowRequest|null;game:GameState;onTick:(n:number)=>void;onCoverage:(read:Record<number,number>)=>void;onSpatialResult:(result:Result)=>void;elapsed:React.RefObject<number>}){
   const reported=useRef(false);
+  const resolvedHold=useRef(0);
   const lastTick=useRef(-1);
   const lastCoverage=useRef(-1);
-  useEffect(()=>{reported.current=false;lastTick.current=-1;lastCoverage.current=-1;elapsed.current=0;},[world,elapsed]);
+  useEffect(()=>{reported.current=false;resolvedHold.current=0;lastTick.current=-1;lastCoverage.current=-1;elapsed.current=0;},[world,elapsed]);
   useEffect(()=>{
     if(!request||world.phase!=='live')return;
     releaseSpatialBall(world,request.point,request.receiver);
@@ -264,8 +305,11 @@ function SpatialClock({world,request,game,onTick,onCoverage,onSpatialResult,elap
       onCoverage(read);
     }
     if(outcome){
-      reported.current=true;
-      onSpatialResult(resultFromWorld(game,world,outcome));
+      resolvedHold.current+=dt;
+      if(resolvedHold.current>=.43){
+        reported.current=true;
+        onSpatialResult(resultFromWorld(game,world,outcome));
+      }
     }
   });
   return null;
@@ -323,6 +367,8 @@ function Scene(props:Props){
         onTick={onTick} onCoverage={onCoverage} onSpatialResult={onSpatialResult}/>
       {world.actors.map(a=><SpatialFigure key={a.id} actor={a} world={world} selected={receiver}/>)}
       <SpatialBall world={world}/>
+      <BallTrail world={world}/>
+      <CatchFlash world={world}/>
       {TARGETS.map(id=><SpatialBeacon key={id} world={world} id={id} selected={id===receiver} onSelect={onSelect}/>)}
       <Target aim={aim} active={world.phase==='live'}/>
     </> : <>
