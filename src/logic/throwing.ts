@@ -45,8 +45,8 @@ export function coveragePoint(index: number, defense: GameState['defense'], yard
   return [x + (index<2 ? 1 : -1)*Math.min(t*1.3,4), clamp(yard+depth + t*drop,1,99)];
 }
 
-function makeResult(s: GameState, play: PlayId, elapsed: number, yards: number, complete: boolean, outOfBounds: boolean, turnover: boolean, text: string, random:()=>number, grade:Result['grade']): Result {
-  const setup = s.clockRunning ? 7 : 0;
+function makeResult(s: GameState, play: PlayId, elapsed: number, yards: number, complete: boolean, outOfBounds: boolean, turnover: boolean, text: string, random:()=>number, grade:Result['grade'], tempo: Tempo): Result {
+  const setup = s.clockRunning ? (tempo === 'huddle' ? 16 : 7) : 0;
   const time = clamp(Math.ceil(elapsed)+setup,1,s.seconds);
   const seconds = Math.max(0,s.seconds-time);
   const yard = clamp(s.yard+yards,1,100);
@@ -108,13 +108,12 @@ export function resolveThrow(s:GameState,play:PlayId,tempo:Tempo,id:ReceiverId,a
   const desc=picked?'PICKED OFF! THE DEFENDER JUMPS THE ROUTE.':complete?
     receiver+' MAKES THE CATCH! +'+yards+' YDS.':
     (miss>8?'OFF TARGET! PASS INCOMPLETE.':'BROKEN UP! PASS INCOMPLETE.');
-  void targetNow;void tempo;
-  return makeResult(s,play,releaseAt+flight+1, yards,complete,boundary,picked,desc,random,quality);
+  void targetNow;
+  return makeResult(s,play,releaseAt+flight+1, yards,complete,boundary,picked,desc,random,quality,tempo);
 }
 export function resolveSack(s:GameState,tempo:Tempo,releaseAt:number,random:()=>number=Math.random):Result {
   const yards=-(3+Math.floor(random()*6));
-  const result=makeResult(s,'quick',releaseAt+2,yards,true,false,false,'SACKED! '+yards+' YARDS. '+fieldSpot(s.yard)+'.',random,'D');
+  const result=makeResult(s,'quick',releaseAt+2,yards,true,false,false,'SACKED! '+yards+' YARDS. '+fieldSpot(s.yard)+'.',random,'D',tempo);
   result.state.clockRunning=true;
-  void tempo;
   return result;
 }
