@@ -160,6 +160,30 @@ export function throwBall(w:World,target:Point,receiver:ReceiverId):boolean{
  w.phase='flight';
  return true;
 }
+/** Forecast where a real moving receiver will be when a pass arrives.
+ * Uses the SAME pursuit and route integration as the on-field simulation;
+ * there is no scripted catch position or completion probability.
+ */
+export function predictLead(w:World,id:ReceiverId):Point{
+  let target=actorPoint(w,id);
+  for(let iteration=0;iteration<2;iteration++){
+    const flightTime=clamp(.30+distance([0,w.yard-5],target)/52,.42,1.56);
+    const projection:World={
+      ...w,t:w.t,phase:'live',flight:null,outcome:null,
+      actors:w.actors.map(a=>({...a}))
+    };
+    const steps=Math.ceil(flightTime*60);
+    for(let i=0;i<steps;i++){
+      // Approach math has no randomness. Don't stop projection for a future sack.
+      const dt=Math.min(1/60,flightTime-i/60);
+      if(dt<=0)break;
+      projection.t+=dt;
+      updateActors(projection,dt);
+    }
+    target=actorPoint(projection,id);
+  }
+  return [clamp(target[0],-25.5,25.5),clamp(target[1],1,99)];
+}
 export function finishFlight(w:World):SpatialOutcome{
  if(!w.flight)throw Error('No ball in flight');
  const f=w.flight;
