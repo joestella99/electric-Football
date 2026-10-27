@@ -199,7 +199,7 @@ function App(){
 
           <div className="specials">
             <div className="special-btns">
-              <button disabled={busy||terminal||game.down>4} onClick={()=>{setPlay('spike');commit(simulate(game,'spike',tempo));}}><Clock3 size={15}/> SPIKE <span>STOP CLOCK</span></button>
+              <button disabled={busy||terminal||game.down>4} onClick={()=>{commit(simulate(game,'spike',tempo));}}><Clock3 size={15}/> SPIKE <span>STOP CLOCK</span></button>
               <button disabled={busy||terminal} onClick={()=>{setPlay('fieldgoal');commit(simulate(game,'fieldgoal',tempo));}}><Target size={15}/> KICK FIELD GOAL <span>{kickDistance(game.yard)} YDS</span></button>
             </div>
             <button className="reset-link" onClick={()=>reset()}><RotateCcw size={14}/> RESTART DRILL</button>
