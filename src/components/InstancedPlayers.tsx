@@ -20,7 +20,6 @@ const palette={
 };
 const HOME='#f4d48c',AWAY='#cd6047',BASE_HOME='#b68b45',BASE_AWAY='#973d32';
 type Piece='base'|'torso'|'shoulder'|'helmet'|'armLeft'|'armRight'|'legLeft'|'legRight'|'mask'|'stripe'|'shadow';
-const keys:Piece[]=['base','torso','shoulder','helmet','armLeft','armRight','legLeft','legRight','mask','stripe','shadow'];
 const dummy=new THREE.Object3D();
 const tmpColor=new THREE.Color();
 function isHome(actor:Actor){return actor.side==='offense';}
