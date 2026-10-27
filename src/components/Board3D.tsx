@@ -33,16 +33,16 @@ const ballGeometry = new THREE.SphereGeometry(.58,10,8);
 function CameraRig({yard,view,live,elapsed}:{yard:number;view:View;live:Live|null;elapsed:React.RefObject<number>}) {
   const camera=useThree(s=>s.camera);
   const size=useThree(s=>s.size);
-  const target=useRef(new THREE.Vector3());
+  const target=useRef(new THREE.Vector3(0,0,clip(yard+12,23,85)));
   const pose=useRef(new THREE.Vector3());
   useFrame((_,dt)=>{
     const aspect=size.width/Math.max(1,size.height);
     const mobile=aspect<1.12;
     const focus=clip(yard+12+(live?Math.min(29,elapsed.current*3.7):0),23,85);
-    target.current.set(0,0,focus);
+    const k=1-Math.exp(-dt*4.3);
+    target.current.z+=(focus-target.current.z)*k;
     if(view==='coach')pose.current.set(0,(mobile?88:76)+(live?elapsed.current*1.4:0),focus+.01);
     else pose.current.set(mobile?0:7,(mobile?65:49)+(live?Math.min(18,elapsed.current*2.4):0),focus-(mobile?44:36)-(live?Math.min(14,elapsed.current*1.8):0));
-    const k=1-Math.exp(-dt*3.5);
     camera.position.lerp(pose.current,k);
     camera.lookAt(target.current);
     if(camera instanceof THREE.PerspectiveCamera){
@@ -217,9 +217,10 @@ function SpatialClock({world,request,game,onTick,onCoverage,onSpatialResult,onLe
   },[request?.id,world]);
   useFrame((_,dt)=>{
     if(reported.current)return;
-    const steps=Math.max(1,Math.min(4,Math.ceil(dt/(1/60))));
+    const frame=Math.min(.10,Math.max(0,dt));
+    const steps=Math.max(1,Math.min(6,Math.ceil(frame/(1/60))));
     let outcome=null;
-    for(let i=0;i<steps&&!outcome;i++)outcome=stepWorld(world,Math.min(1/60,dt/steps));
+    for(let i=0;i<steps&&!outcome;i++)outcome=stepWorld(world,frame/steps);
     elapsed.current=world.t;
     const ticks=Math.floor(world.t*5);
     if(ticks!==lastTick.current){lastTick.current=ticks;onTick(world.t);}
