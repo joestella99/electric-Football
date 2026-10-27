@@ -182,3 +182,24 @@
 .sheet-scenario{width:100%;background:#274339;color:#f1d59e;border:1px solid #708475;padding:9px 12px;font:800 15px 'Barlow Condensed',sans-serif;letter-spacing:.4px;cursor:pointer}
 .sheet-scenario:focus-visible{outline:2px solid #e7bd69;outline-offset:2px}
 @media(max-height:630px){.sheet-scenario{padding:6px 10px;font-size:13px}}
+
+/* Coach-designed routes, presented as a compact drafting bench. */
+.route-players{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
+.route-players button{border:1px solid #597468;background:#273f37;padding:8px 3px;color:#e2e4cd;font:900 12px 'Barlow Condensed',sans-serif}
+.route-players button.active{border-color:#f7d08a;background:#ddae67;color:#1a322c}
+.route-presets{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;margin-top:10px}
+.route-presets button{padding:8px 1px;border:1px solid #536c5b;background:#253d36;color:#dbe8d8;font:800 11px 'Barlow Condensed',sans-serif;letter-spacing:.25px}
+.route-presets button:hover{background:#355b4b}.route-presets button.active{background:#f1cd89;color:#1b332e;border-color:#ffdb93}
+.draw-tools{display:flex;gap:7px;margin-top:11px}
+.draw-tools button{display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 8px;background:#4b6454;color:#fff0c9;border:1px dashed #c0ab7a;font:800 12px 'Barlow Condensed',sans-serif;flex:1;letter-spacing:.4px}
+.draw-tools button.drawing{background:#b95641;border-color:#fbc97b;animation:routePulse 1.4s infinite alternate}
+@keyframes routePulse{from{box-shadow:0 0 0 #0000}to{box-shadow:0 0 16px #e2aa6d87}}
+.route-explainer{display:block;margin-top:10px;font:500 10px/1.4 Outfit,sans-serif;color:#a5bdad}
+.drawing-tip{position:absolute;z-index:6;bottom:17px;left:50%;transform:translateX(-50%);background:#bd573c;border:2px solid #ffd58b;color:#fff8dd;box-shadow:0 4px 20px #0007;padding:12px 17px;font:800 14px 'Barlow Condensed',sans-serif;letter-spacing:1px;pointer-events:none;white-space:nowrap;max-width:96%;text-align:center}
+@media(max-width:650px){
+ .route-players button{font-size:11px;padding:6px 2px}.route-presets{gap:3px;margin-top:5px}.route-presets button{font-size:10px;padding:6px 1px}
+ .draw-tools{margin-top:6px}.draw-tools button{padding:6px 5px}
+ .route-explainer{margin-top:6px}.drawing-tip{font-size:11px;padding:8px}
+ .sheet-footer{flex-wrap:wrap}
+}
+@media(max-height:690px){.route-presets button{padding:5px 2px}.route-players button{padding:5px 2px}.draw-tools button{padding:5px}.route-explainer{display:none}}
