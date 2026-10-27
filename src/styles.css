@@ -114,3 +114,56 @@
 @media(max-height:730px) and (min-width:651px){.topbar{height:58px;flex-basis:58px}.control-deck{height:174px;flex-basis:174px;padding:10px}.micro-footer{display:none}.deck-meta h2{font-size:24px}.primary-action{height:65px}.play-choice .route-icon{height:29px}}
 @media(max-height:640px) and (max-width:650px){.control-deck{height:222px;flex-basis:222px;grid-template-rows:32px minmax(0,1fr) 77px}.deck-meta h2{font-size:20px}.play-choice{min-height:0}.action-stack{grid-template-columns:1fr 1.1fr}.secondary-actions button{padding:1px}.receiver-choice .jersey{height:26px;width:26px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+
+/* V1.3 Coach's Board — tactics remain inside the game, not another page. */
+.coach-banner{position:absolute;z-index:3;top:91px;left:clamp(12px,2.1vw,32px);display:flex;align-items:center;gap:11px;max-width:min(570px,60vw);background:linear-gradient(110deg,rgba(20,38,33,.96),rgba(29,54,43,.83));color:#f1e5c7;border:1px solid rgba(220,175,102,.48);border-left:3px solid #e2b56e;box-shadow:0 8px 28px #06110dac;padding:10px 11px}
+.coach-banner>svg{color:#e9be76}.coach-banner>span{min-width:0;display:flex;flex-direction:column;gap:4px}
+.coach-banner strong{font:800 14px/1 'Barlow Condensed',sans-serif;letter-spacing:1px;color:#e8bb76;white-space:nowrap}
+.coach-banner small{font:500 10px/1.2 'DM Mono',monospace;letter-spacing:.08px;color:#adc1b1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.coach-banner>button{margin-left:5px;display:flex;align-items:center;gap:6px;flex-shrink:0;background:#d3ad6e;border:0;color:#233c36;font:900 12px 'Barlow Condensed',sans-serif;letter-spacing:.6px;padding:9px}
+.coach-banner>button:hover{background:#f4d39b}
+.coach-dock-button{display:flex;gap:8px;align-items:center;justify-content:center;margin-top:11px;border:1px solid #bc8860;background:#243e37;color:#f1ddab;padding:9px 8px;font:800 12px 'Barlow Condensed',sans-serif;letter-spacing:.65px;white-space:nowrap}
+.coach-dock-button:hover{background:#355c4b}
+.coach-dock-button span{margin-left:auto;border:1px solid #748675;padding:1px 5px;font:700 9px 'DM Mono',monospace}
+.tactics-sheet{position:absolute;z-index:8;right:clamp(14px,2vw,30px);top:79px;bottom:18px;width:min(408px,calc(100% - 28px));max-height:630px;background:linear-gradient(165deg,rgba(25,48,43,.98),rgba(13,29,26,.99));border:1px solid #8e7955;border-top:5px solid #e0b772;padding:18px 19px 15px;box-shadow:0 20px 80px #000d;color:#f6e8cf;overflow-y:auto;overscroll-behavior:contain;scrollbar-color:#8b7957 #1c352f;scrollbar-width:thin;animation:slideInPanel .22s ease-out}
+@keyframes slideInPanel{from{opacity:.4;transform:translateX(14px)}to{opacity:1;transform:translateX(0)}}
+.sheet-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;border-bottom:1px solid #496255;padding-bottom:12px}.sheet-top>div>span{color:#a3b4a2;font:600 9px 'DM Mono',monospace;letter-spacing:.7px}
+.sheet-top h3{margin:5px 0 0;font:900 31px 'Barlow Condensed',sans-serif;color:#eac181;letter-spacing:1.2px}
+.sheet-top>button{border:1px solid #516859;background:transparent;color:#ebd4aa;width:34px;height:34px;display:grid;place-items:center}
+.sheet-top>button:hover{background:#425549}
+.sheet-cue{margin:12px 0 17px;color:#b8c9b5;font:600 11px 'DM Mono',monospace;line-height:1.5}
+.tactics-sheet>label{display:block;color:#e0b975;font:700 10px 'DM Mono',monospace;letter-spacing:1.1px;margin:15px 0 9px}
+.scheme-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.scheme-grid button{display:flex;align-items:center;flex-direction:column;justify-content:center;gap:8px;background:#2a433b;color:#e0e9d6;border:1px solid #5a6f60;min-height:86px;padding:8px 5px;text-align:center}
+.scheme-grid button:hover{background:#3d594b}.scheme-grid button.active{border:2px solid #edc479;background:#594d34;color:#ffe5af}
+.scheme-grid strong{font:900 15px/.98 'Barlow Condensed',sans-serif;letter-spacing:.4px}.scheme-grid small{font:500 9px/1.25 Outfit,sans-serif;color:#b5bfaf}.scheme-grid button.active small{color:#ead3a0}
+.sheet-footer{border-top:1px solid #536958;display:flex;align-items:center;justify-content:space-between;gap:9px;padding:13px 0;margin-top:17px;color:#d8e3d4;font:700 10px 'DM Mono',monospace}
+.sheet-footer>span{display:flex;align-items:center;gap:5px}.sheet-footer svg{color:#e8b874}.sheet-footer b{color:#efc782}.sheet-footer>span:last-child{font-size:8px;color:#9eb4a4;text-align:right}
+.sheet-done{background:#e2b56c;border:0;color:#19342e;padding:11px 14px;width:100%;display:flex;align-items:center;justify-content:space-between;font:900 19px 'Barlow Condensed',sans-serif;letter-spacing:1px}
+.sheet-done:hover{background:#f7d99a}
+.defense-read strong{font-size:13px}
+@media(max-width:900px){
+  .tactics-sheet{top:67px;bottom:10px;padding:11px 13px;max-height:none}
+  .sheet-top h3{font-size:26px}.scheme-grid button{min-height:64px;gap:4px}
+  .tactics-sheet>label{margin:10px 0 6px}.sheet-cue{margin:9px 0}
+  .sheet-footer{margin-top:10px;padding:8px 0}
+  .coach-banner{max-width:65vw;top:84px}.coach-banner>button{font-size:10px}
+  .coach-dock-button{padding:6px 5px;margin-top:5px;font-size:10px}
+}
+@media(max-width:650px){
+  .coach-banner{top:67px;left:10px;max-width:calc(100% - 130px);padding:7px 8px;gap:5px}
+  .coach-banner>svg{display:none}.coach-banner strong{font-size:12px}.coach-banner small{font-size:8px;line-height:1.18}
+  .coach-banner>button{display:none}
+  .tactics-sheet{top:95px;bottom:9px;right:9px;width:min(360px,calc(100% - 18px));max-height:none;padding:11px 12px}
+  .scheme-grid button{min-height:61px;padding:5px 3px}.scheme-grid strong{font-size:13px}.scheme-grid small{font-size:8px}
+  .deck-meta .coach-dock-button{display:flex;font-size:10px;gap:4px;padding:5px}
+  .deck-meta .coach-dock-button svg{width:12px}.deck-meta .coach-dock-button span{display:none}
+  .scenario-select{display:none}
+  .sheet-footer>span:last-child{font-size:8px}
+}
+@media(max-height:630px){
+  .tactics-sheet{bottom:6px;top:59px}
+  .scheme-grid button{min-height:48px}.scheme-grid small{display:none}
+  .sheet-top h3{font-size:23px}.sheet-footer{margin-top:5px;padding:6px 0}.tactics-sheet>label{margin:7px 0 5px}
+}
