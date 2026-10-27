@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowRight, ChevronDown, CircleHelp, Clock3, Crosshair, Eye, Flag, Fullscreen, Goal, Keyboard, RotateCcw, Shield, Target, TimerReset, Zap } from 'lucide-react';
+import { ArrowRight, ChevronDown, CircleHelp, Clock3, Crosshair, Eye, Flag, Fullscreen, Goal, Keyboard, RotateCcw, Shield, Target, TimerReset, Zap, SlidersHorizontal, X, ScanEye, ClipboardList } from 'lucide-react';
 import Board3D, { type Live, type Motion } from './components/Board3D';
 import { SCENARIOS, PLAYS, fieldSpot, formatClock, initialGame, kickDistance, simulate, useTimeout, type GameState, type PlayId, type Result } from './logic/drill';
 import { RECEIVERS, passPlay, pressureLimit, receiverPoint, resolveSack, resolveThrow, type Point, type ReceiverId } from './logic/throwing';
+import { DEFAULT_CALL, FORMATIONS, PROTECTIONS, isEligible, presnapRead, coachingCue, type TacticalCall } from './logic/tactics';
 
 type View = 'sideline' | 'coach';
 type Feed = { id: number; label: string; clock: number; gain: number; grade: string };
@@ -18,6 +19,8 @@ function App() {
   const [scenarioId,setScenarioId]=useState('the-comeback');
   const [game,setGame]=useState<GameState>(()=>initialGame());
   const [play,setPlay]=useState<PlayId>('quick');
+  const [call,setCall]=useState<TacticalCall>({...DEFAULT_CALL});
+  const [tacticsOpen,setTacticsOpen]=useState(false);
   const [view,setView]=useState<View>('sideline');
   const [receiver,setReceiver]=useState<ReceiverId>(7);
   const [live,setLive]=useState<Live|null>(null);
@@ -32,7 +35,9 @@ function App() {
   const sequence=useRef(0);
   const active=!!live||!!motion;
   const finished=game.status!=='playing';
-  const pressure=pressureLimit(game.defense);
+  const pressure=pressureLimit(game.defense,call.protection);
+  const read=presnapRead(game.defense);
+  const coachNote=coachingCue(game,play,call);
   const remaining=Math.max(0,game.seconds-(live?Math.ceil(elapsed):0)-(live&&game.clockRunning?7:0));
   const progress=live? Math.min(100,(elapsed/pressure)*100):0;
   const selectedName=RECEIVERS.find(r=>r.id===receiver)?.label??'HARRIS';
@@ -41,7 +46,8 @@ function App() {
     const scenario=SCENARIOS.find(s=>s.id===id)??SCENARIOS[0];
     const fresh=initialGame(scenario);
     setScenarioId(scenario.id);setGame(fresh);setPlay('quick');setReceiver(7);
-    setAim(receiverPoint(7,'quick',fresh.yard,2));setAutoLead(true);
+    setCall({...DEFAULT_CALL});setTacticsOpen(false);
+    setAim(receiverPoint(7,'quick',fresh.yard,2,DEFAULT_CALL.formation));setAutoLead(true);
     setLive(null);setMotion(null);setElapsed(0);setLast(null);setFeed([]);
     sequence.current+=1;
   },[scenarioId]);
@@ -56,25 +62,25 @@ function App() {
     if(active||finished)return;
     setLast(null);
     if(passPlay(play)){
-      setElapsed(0);setAutoLead(true);setAim(receiverPoint(receiver,play,game.yard,2));
+      setElapsed(0);setAutoLead(true);setTacticsOpen(false);setAim(receiverPoint(receiver,play,game.yard,2,call.formation));
       setLive({id:++sequence.current,play});
     } else {
-      const result=simulate(game,play,'hurry');
+      const result=simulate(game,play,'hurry',Math.random,call);
       setMotion({id:++sequence.current,result,startYard:game.yard});
     }
-  },[active,finished,play,receiver,game]);
+  },[active,finished,play,receiver,game,call]);
 
   const choose=useCallback((id:ReceiverId)=>{
     setReceiver(id);setAutoLead(true);
-    setAim(receiverPoint(id,play,game.yard,live?elapsed+1.1:2));
-  },[game.yard,live,elapsed,play]);
+    setAim(receiverPoint(id,play,game.yard,live?elapsed+1.1:2,call.formation));
+  },[game.yard,live,elapsed,play,call.formation]);
 
   const throwNow=useCallback((point:Point,id?:ReceiverId)=>{
     if(!live)return;
     const target=id??receiver;
-    const result=resolveThrow(game,live.play,'hurry',target,point,elapsed);
+    const result=resolveThrow(game,live.play,'hurry',target,point,elapsed,Math.random,call);
     setLive(null);setMotion({id:++sequence.current,result,startYard:game.yard,aim:point,releaseAt:elapsed});
-  },[live,receiver,game,elapsed]);
+  },[live,receiver,game,elapsed,call]);
 
   const sack=useCallback((seconds:number)=>{
     if(!live)return;
@@ -83,18 +89,27 @@ function App() {
 
   const onTick=useCallback((seconds:number)=>{
     setElapsed(seconds);
-    if(live&&autoLead)setAim(receiverPoint(receiver,live.play,game.yard,seconds+1.15));
-  },[live,autoLead,receiver,game.yard]);
+    if(live&&autoLead)setAim(receiverPoint(receiver,live.play,game.yard,seconds+1.15,call.formation));
+  },[live,autoLead,receiver,game.yard,call.formation]);
 
   const changePlay=(id:PlayId)=>{
     if(active||finished)return;
-    setPlay(id);setAim(receiverPoint(receiver,id,game.yard,2));setAutoLead(true);
+    setPlay(id);setAim(receiverPoint(receiver,id,game.yard,2,call.formation));setAutoLead(true);
   };
   const special=(id:'spike'|'fieldgoal')=>{
     if(active||finished)return;
-    completePlay(simulate(game,id,'hurry'));
+    completePlay(simulate(game,id,'hurry',Math.random,call));
   };
   const timeout=()=>setGame(state=>useTimeout(state));
+  const chooseFormation=(formation:TacticalCall['formation'])=>{
+    if(active||finished)return;
+    setCall(prev=>({...prev,formation}));setAim(receiverPoint(receiver,play,game.yard,2,formation));setAutoLead(true);
+  };
+  const chooseProtection=(protection:TacticalCall['protection'])=>{
+    if(active||finished)return;
+    setCall(prev=>({...prev,protection}));
+    if(protection==='max' && receiver===1){setReceiver(7);setAim(receiverPoint(7,play,game.yard,2,call.formation));}
+  };
   const fullscreen=()=>{
     if(document.fullscreenElement)void document.exitFullscreen();
     else void document.documentElement.requestFullscreen?.();
@@ -127,10 +142,11 @@ function App() {
       const digit=event.code.startsWith('Digit')?Number(event.code.slice(-1)):0;
       if(digit>=1&&digit<=6){
         event.preventDefault();
-        if(live&&digit<=5)choose(RECEIVERS[digit-1].id);
+        if(live&&digit<=5 && isEligible(RECEIVERS[digit-1].id,call))choose(RECEIVERS[digit-1].id);
         else if(!active&&!finished&&digit<=6)changePlay(PLAYS[digit-1].id);
       }
       if(event.code==='KeyV')setView(v=>v==='sideline'?'coach':'sideline');
+      if(event.code==='KeyC'&&!active)setTacticsOpen(v=>!v);
     };
     window.addEventListener('keydown',listener);
     return ()=>window.removeEventListener('keydown',listener);
@@ -154,7 +170,7 @@ function App() {
       </div>
     </header>
     <div className="arena">
-      <Board3D yard={game.yard} toGo={game.toGo} defense={game.defense} play={play} view={view}
+      <Board3D yard={game.yard} toGo={game.toGo} defense={game.defense} play={play} view={view} call={call}
         live={live} motion={motion} aim={aim} receiver={receiver}
         onSelect={choose} onAim={point=>{setAutoLead(false);setAim(point);}}
         onThrow={throwNow} onTick={onTick} onSack={sack}
@@ -162,13 +178,24 @@ function App() {
       <div className="screen-grain" aria-hidden="true"/>
       <div className="arena-header">
         <div className="down-flag"><b>{game.down}<sup>{game.down===1?'ST':game.down===2?'ND':game.down===3?'RD':'TH'}</sup> &amp; {game.toGo}</b><span>{fieldSpot(game.yard)}</span></div>
-        <div className="defense-read"><Shield size={15}/><span>DEFENSE</span><strong>{game.defense}</strong></div>
+        <div className="defense-read"><Shield size={15}/><span>{live?'POST-SNAP':'PRE-SNAP LOOK'}</span><strong>{live?game.defense:read.shell}</strong></div>
       </div>
+      {!live&&!motion&&!finished&&<div className="coach-banner"><ScanEye size={14}/><span><strong>{read.cue}</strong><small>{coachNote}</small></span><button onClick={()=>setTacticsOpen(true)}><ClipboardList size={14}/> COACH'S BOARD</button></div>}
       <div className="camera-switch">
         <button className={view==='sideline'?'active':''} onClick={()=>setView('sideline')}><Eye size={14}/> FIELD</button>
         <button className={view==='coach'?'active':''} onClick={()=>setView('coach')}><Target size={14}/> TACTICAL</button>
       </div>
 
+      {tacticsOpen&&!active&&!finished&&<div className="tactics-sheet">
+        <div className="sheet-top"><div><span>OFFENSIVE CONTROL / PRE-SNAP</span><h3>COACH'S BOARD</h3></div><button onClick={()=>setTacticsOpen(false)} aria-label="Close tactics"><X size={20}/></button></div>
+        <p className="sheet-cue">{read.shell} · {read.cue}</p>
+        <label>OFFENSIVE FORMATION</label>
+        <div className="scheme-grid">{FORMATIONS.map(option=><button key={option.id} className={call.formation===option.id?'active':''} onClick={()=>chooseFormation(option.id)}><strong>{option.name}</strong><small>{option.detail}</small></button>)}</div>
+        <label>PASS PROTECTION</label>
+        <div className="scheme-grid">{PROTECTIONS.map(option=><button key={option.id} className={call.protection===option.id?'active':''} onClick={()=>chooseProtection(option.id)}><strong>{option.name}</strong><small>{option.detail}</small></button>)}</div>
+        <div className="sheet-footer"><span><Zap size={15}/> PROJECTED POCKET: <b>{pressure.toFixed(1)}s</b></span><span>{call.protection==='max'?'RB stays home to block':'ALL FIVE TARGETS ELIGIBLE'}</span></div>
+        <button className="sheet-done" onClick={()=>setTacticsOpen(false)}>SET THE PLAY <ArrowRight size={16}/></button>
+      </div>}
       {live&&<div className="pressure-panel"><div className="pressure-heading"><span className="hot-dot"/> POCKET COLLAPSING <strong>{(pressure-elapsed).toFixed(1)}s</strong></div>
         <div className="pressure-track"><i style={{width:progress+'%'}}/></div><small>CLICK THE FIELD TO PLACE YOUR THROW</small></div>}
       {!active&&!finished&&!last&&<div className="floating-tip"><span className="keycap">SPACE</span> SNAP THE BALL <span className="tip-separator"/> THEN READ YOUR RECEIVERS</div>}
@@ -178,19 +205,20 @@ function App() {
       <div className="drive-access"><button className={historyOpen?'opened':''} onClick={()=>setHistoryOpen(v=>!v)}><Flag size={14}/> DRIVE LOG <span>{feed.length}</span></button>
         {historyOpen&&<div className="drive-popover"><strong>THIS DRIVE</strong>{feed.length?feed.map(item=><div key={item.id}><b>{item.grade}</b><span>{item.label}<small>{formatClock(item.clock)} · {item.gain>=0?'+':''}{item.gain} YDS</small></span></div>):<p>YOUR DRIVE STARTS HERE.</p>}</div>}
       </div>
-      <div className="game-corner">TOY TABLETOP ENGINE <span>·</span> V1.1</div>
+      <div className="game-corner">VIBRA-BOWL / DIRECTOR'S CUT <span>·</span> V1.2</div>
     </div>
 
     <section className={'control-deck '+(live?'deck-live':'')}>
       <div className="deck-meta">
         <div className="label-tiny"><span className="live-led"/> {live?'QUARTERBACK MODE':active?'PLAYING':'OFFENSIVE COORDINATOR'}</div>
         <h2>{live?'FIND YOUR MAN.':finished?'THE FINAL DRIVE.':motion?'WATCH THE PLAY.':'CALL YOUR SHOT.'}</h2>
-        <p>{live?'Pick a receiver below, then click a spot on the field to throw. The rush is coming.':motion?'Players are in motion.':finished?'Run it back or try a different scenario.':'Choose a play. When the ball is snapped, you take over.'}</p>
+        <p>{live?'Find separation. Click a spot to lead your receiver.':motion?'Players are in motion.':finished?'Run it back or try a different scenario.':call.formation.toUpperCase()+' / '+call.protection.toUpperCase()+' PROTECTION'}</p>
+        {!live&&!active&&!finished&&<button className="coach-dock-button" onClick={()=>setTacticsOpen(true)}><SlidersHorizontal size={15}/> CHANGE SCHEME <span>C</span></button>}
       </div>
 
       {live ? <>
         <div className="receiver-picker">
-          {RECEIVERS.map((r,i)=><button className={'receiver-choice '+(receiver===r.id?'selected':'')} key={r.id} onClick={()=>choose(r.id)}>
+          {RECEIVERS.map((r,i)=><button disabled={!isEligible(r.id,call)} className={'receiver-choice '+(receiver===r.id?'selected':'')} key={r.id} onClick={()=>choose(r.id)}>
             <kbd>{i+1}</kbd><span className="jersey">#{r.number}</span><b>{r.label}</b><small>{r.role}</small>
           </button>)}
         </div>
@@ -229,7 +257,7 @@ function App() {
           <div><b>02</b><span><strong>SNAP — SPACE</strong><small>Players come to life. Passing plays put you in QB control.</small></span></div>
           <div><b>03</b><span><strong>THROW — CLICK OR SPACE</strong><small>Choose receivers 1–5. Click exactly where to throw, or press Space to lead the selected target. Timing matters.</small></span></div>
           <div><b>04</b><span><strong>BEAT THE CLOCK</strong><small>The clock keeps running after in-bounds catches. Timeouts, spikes and kicks matter.</small></span></div></div>
-        <div className="help-keys"><Keyboard size={17}/> KEYS: 1–6 CALL PLAYS · 1–5 CHOOSE RECEIVERS · V CAMERA · SPACE SNAP/THROW</div>
+        <div className="help-keys"><Keyboard size={17}/> KEYS: 1–6 PLAYS · 1–5 RECEIVERS · C COACH'S BOARD · V CAMERA · SPACE SNAP/THROW</div>
         <button className="help-start" onClick={()=>setHelp(false)}>GOT IT. LET'S PLAY <ArrowRight size={19}/></button>
       </div>
     </div>}
