@@ -66,3 +66,35 @@ test('flight catch point is independent of random outcome tables',()=>{
  w.flight.elapsed=w.flight.duration;
  assert.ok(['incomplete','breakup','interception'].includes(finishFlight(w).kind));
 });
+
+test('a receiver standing at the landing spot catches a ball with no defender nearby',()=>{
+ const w=newWorld(42,'SOFT ZONE','quick');
+ const target=[-13,56];
+ assert.equal(throwBall(w,target,7),true);
+ const receiver=w.actors.find(a=>a.id===7);
+ receiver.x=target[0];receiver.z=target[1];
+ for(const defender of w.actors.filter(a=>a.side==='defense')){defender.x=20;defender.z=80;}
+ const outcome=finishFlight(w);
+ assert.equal(outcome.kind,'catch');
+ assert.ok(outcome.yards>0);
+});
+test('a physical defender at the catch point makes a breakup rather than a random incompletion',()=>{
+ const w=newWorld(42,'BLITZ','quick');
+ const point=[-13,56];throwBall(w,point,7);
+ const wr=w.actors.find(a=>a.id===7);
+ wr.x=point[0]+2.15;wr.z=point[1];
+ for(const defender of w.actors.filter(a=>a.side==='defense')){defender.x=20;defender.z=85;}
+ const cb=w.actors.find(a=>a.id===18);
+ cb.x=point[0]+1.6;cb.z=point[1];
+ assert.equal(finishFlight(w).kind,'breakup');
+});
+test('defender beating the target to an unprotected landing point creates an interception',()=>{
+ const w=newWorld(42,'BLITZ','quick');
+ const point=[-13,56];throwBall(w,point,7);
+ const wr=w.actors.find(a=>a.id===7);wr.x=-19;wr.z=52;
+ for(const defender of w.actors.filter(a=>a.side==='defense')){defender.x=20;defender.z=85;}
+ const cb=w.actors.find(a=>a.id===18);cb.x=point[0];cb.z=point[1];
+ const outcome=finishFlight(w);
+ assert.equal(outcome.kind,'interception');
+ assert.equal(resultFromWorld(initialGame(),w,outcome).state.status,'lost');
+});
