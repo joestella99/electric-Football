@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {newWorld,stepWorld,throwBall,routeAt,routeVertices,starterRoutes,actorPoint,closestDefender,resultFromWorld,finishFlight} from '../src/logic/spatial.ts';
+import {newWorld,stepWorld,throwBall,routeAt,routeVertices,starterRoutes,actorPoint,closestDefender,resultFromWorld,finishFlight,predictLead} from '../src/logic/spatial.ts';
 import {initialGame} from '../src/logic/drill.ts';
 
 test('routes have editable waypoints and generate motion in real space',()=>{
@@ -97,4 +97,22 @@ test('defender beating the target to an unprotected landing point creates an int
  const outcome=finishFlight(w);
  assert.equal(outcome.kind,'interception');
  assert.equal(resultFromWorld(initialGame(),w,outcome).state.status,'lost');
+});
+
+test('assisted throws target the actual moving player and do not mutate the live world',()=>{
+ const w=newWorld(41,'SOFT ZONE','quick');
+ for(let i=0;i<35;i++)stepWorld(w,1/60);
+ const before=w.actors.map(a=>[a.x,a.z]);
+ const elapsed=w.t;
+ const lead=predictLead(w,7);
+ assert.deepEqual(lead,predictLead(w,7));
+ assert.ok(Number.isFinite(lead[0])&&Number.isFinite(lead[1]));
+ assert.ok(lead[0]>=-25.5&&lead[0]<=25.5);
+ assert.deepEqual(w.actors.map(a=>[a.x,a.z]),before);
+ assert.equal(w.t,elapsed);
+ assert.equal(throwBall(w,lead,7),true);
+ let outcome;
+ for(let i=0;i<200&&!outcome;i++)outcome=stepWorld(w,1/60);
+ assert.ok(outcome);
+ assert.equal(outcome.receiver===undefined || outcome.receiver===7,true);
 });
