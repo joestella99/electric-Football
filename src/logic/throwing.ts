@@ -125,3 +125,17 @@ export function resolveSack(s:GameState,tempo:Tempo,releaseAt:number,random:()=>
   result.state.clockRunning=true;
   return result;
 }
+
+
+export type CoverageRead = { feet: number; label: 'OPEN' | 'WINDOW' | 'CONTESTED'; color: 'green' | 'amber' | 'red' };
+/** A readable estimate of route separation, not a real NFL completion model. */
+export function coverageRead(id: ReceiverId, play: PlayId, yard: number, t: number, defense: GameState['defense'], call: TacticalCall=DEFAULT_CALL): CoverageRead {
+  const receiver=receiverPoint(id,play,yard,t,call.formation);
+  const nearest=Math.min(...[0,1,2,3].map(i=>{
+    const defender=coveragePoint(i,defense,yard,t,play,call.formation);
+    return Math.hypot(receiver[0]-defender[0],receiver[1]-defender[1]);
+  }));
+  if(nearest>8)return {feet:Math.round(nearest),label:'OPEN',color:'green'};
+  if(nearest>4)return {feet:Math.round(nearest),label:'WINDOW',color:'amber'};
+  return {feet:Math.round(nearest),label:'CONTESTED',color:'red'};
+}
