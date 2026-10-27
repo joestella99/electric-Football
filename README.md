@@ -5,6 +5,21 @@ Inspired by classic electric tabletop football and the decision-making stakes of
 
 **Play:** https://joestella99.github.io/electric-Football/
 
+## V1.3 — Coach's Cut
+
+This iteration shifts the game toward decisions a real offensive coach would recognize, while retaining its intentionally miniature, arcade-style presentation.
+
+- **Interactive Coach's Board (C):** change formations among 2×2 Spread, Trips Right, and Bunch Left without leaving the live field. Select 5-man, Max Protect or Slide protection.
+- **Meaningful tradeoffs:** max protection gives more time to read the defense but keeps the running back in to block; offensive spacing affects routes and several run/pass matchups.
+- **Pre-snap reconnaissance:** single-high, two-high and heavy-front cues, plus situational coaching tips that react to the clock, distance and field position.
+- **Coverage-read targeting:** receiver cards display OPEN / WINDOW / CONTESTED based on defender positions as routes develop. These are heuristic visual cues, not calibrated completion probabilities.
+- **More detailed miniature football:** molded facemasks and spring-mounted bases, a complete 3D diorama with bleachers, spectators, lamps, goalposts, metal rails and a dressed tabletop cabinet.
+- **No external navigation:** the coach board floats above the game; it closes on snap. On small screens, all gameplay remains in the same viewport.
+- The help screen pauses the between-play game clock. Tactical adjustments do not pause the clock during an active drive.
+
+### Unfinished gameplay systems
+The current player animation is authored procedural motion, **not a collision-based rigid-body simulation**. It still needs blocking and tackle contacts, ball/receiver interception geometry, route assignment customization, audio and camera/browser playtesting. The opponent defense is AI-inspired but not trained on NFL games. The app is a playable portfolio prototype rather than a football simulator marketed as real-world accurate.
+
 ## The immersive v1.1 rebuild
 
 The game is designed as a **single-screen experience**: the scoreboard is always visible, the miniature tabletop is the main focus, and the fixed bottom dock switches between playcalling and quarterback controls. There is no separate page to scroll through to find receivers or actions.
