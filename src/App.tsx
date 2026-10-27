@@ -32,7 +32,7 @@ function App() {
   const [live,setLive]=useState<Live|null>(null);
   const [motion,setMotion]=useState<Motion|null>(null);
   const [elapsed,setElapsed]=useState(0);
-  const [aim,setAim]=useState<Point>(()=>receiverPoint(7,'quick',41,2));
+  const [aim,setAim]=useState<Point>(()=>{const p=routeAt(7,starterRoutes('quick')[7],'spread',2);return [p[0],41+p[1]];});
   const [autoLead,setAutoLead]=useState(true);
   const [last,setLast]=useState<Result|null>(null);
   const [feed,setFeed]=useState<Feed[]>([]);
