@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { memo, useEffect, useMemo, useRef } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, Line, Text } from '@react-three/drei';
 import * as THREE from 'three';
@@ -19,6 +19,7 @@ type Props = {
   game: GameState; routes: RouteBook; drawTarget: ReceiverId|null; throwRequest:ThrowRequest|null;
   onDrawPoint:(point:Point)=>void; onSpatialResult:(result:Result)=>void;
   onAutoThrow:(receiver:ReceiverId)=>void;
+  onLead:(point:Point)=>void; assistAim:boolean;
   quality:'performance'|'balanced'|'high'; onFps:(fps:number)=>void;
   onCoverage:(read:Record<number,number>)=>void;
   live: Live | null; motion: Motion | null; aim: Point; receiver: ReceiverId;
@@ -33,16 +34,16 @@ function CameraRig({yard,view,live,elapsed}:{yard:number;view:View;live:Live|nul
   const camera=useThree(s=>s.camera);
   const size=useThree(s=>s.size);
   const target=useRef(new THREE.Vector3());
+  const pose=useRef(new THREE.Vector3());
   useFrame((_,dt)=>{
     const aspect=size.width/Math.max(1,size.height);
     const mobile=aspect<1.12;
     const focus=clip(yard+12+(live?Math.min(29,elapsed.current*3.7):0),23,85);
     target.current.set(0,0,focus);
-    const pose = view==='coach' ?
-      new THREE.Vector3(0,(mobile?88:76)+(live?elapsed.current*1.4:0),focus+.01) :
-      new THREE.Vector3(mobile?0:7,(mobile?65:49)+(live?Math.min(18,elapsed.current*2.4):0),focus-(mobile?44:36)-(live?Math.min(14,elapsed.current*1.8):0));
+    if(view==='coach')pose.current.set(0,(mobile?88:76)+(live?elapsed.current*1.4:0),focus+.01);
+    else pose.current.set(mobile?0:7,(mobile?65:49)+(live?Math.min(18,elapsed.current*2.4):0),focus-(mobile?44:36)-(live?Math.min(14,elapsed.current*1.8):0));
     const k=1-Math.exp(-dt*3.5);
-    camera.position.lerp(pose,k);
+    camera.position.lerp(pose.current,k);
     camera.lookAt(target.current);
     if(camera instanceof THREE.PerspectiveCamera){
       const fov=mobile?53:43;
@@ -204,7 +205,7 @@ function BallTrail({world}:{world:World}){
     <sphereGeometry args={[size,8,6]}/><meshBasicMaterial color={i<2?'#f2d49d':'#d7a66d'} transparent opacity={.72-i*.11} depthWrite={false}/>
   </mesh>)}</group>;
 }
-function SpatialClock({world,request,game,onTick,onCoverage,onSpatialResult,elapsed}:{world:World;request:ThrowRequest|null;game:GameState;onTick:(n:number)=>void;onCoverage:(read:Record<number,number>)=>void;onSpatialResult:(result:Result)=>void;elapsed:React.RefObject<number>}){
+function SpatialClock({world,request,game,onTick,onCoverage,onSpatialResult,onLead,assistAim,selected,elapsed}:{world:World;request:ThrowRequest|null;game:GameState;onTick:(n:number)=>void;onCoverage:(read:Record<number,number>)=>void;onSpatialResult:(result:Result)=>void;onLead:(point:Point)=>void;assistAim:boolean;selected:ReceiverId;elapsed:React.RefObject<number>}){
   const reported=useRef(false);
   const resolvedHold=useRef(0);
   const lastTick=useRef(-1);
@@ -232,6 +233,7 @@ function SpatialClock({world,request,game,onTick,onCoverage,onSpatialResult,elap
         read[id]=Math.round(Math.hypot(defender.x-spot[0],defender.z-spot[1])*10)/10;
       }
       onCoverage(read);
+      if(assistAim&&world.phase==='live'&&isEligible(selected,world.call))onLead(predictLead(world,selected));
     }
     if(outcome){
       resolvedHold.current+=dt;
@@ -278,6 +280,8 @@ function RouteLines({yard,play,call,routes,selected,live}:{yard:number;play:Play
     </group>;
   })}</group>;
 }
+const MemoField=memo(Field);
+const MemoCabinet=memo(WoodCabinet);
 function PerformanceSampler({onFps}:{onFps:(fps:number)=>void}){
   const samples=useRef({elapsed:0,frames:0});
   useFrame((_,dt)=>{
@@ -291,7 +295,7 @@ function PerformanceSampler({onFps}:{onFps:(fps:number)=>void}){
   return null;
 }
 function Scene(props:Props){
-  const {yard,toGo,defense,play,view,call,live,motion,aim,receiver,routes,drawTarget,throwRequest,game,onAim,onDrawPoint,onThrow,onSelect,onAutoThrow,onTick,onCoverage,onSpatialResult,onDone,quality,onFps}=props;
+  const {yard,toGo,defense,play,view,call,live,motion,aim,receiver,routes,drawTarget,throwRequest,game,onAim,onDrawPoint,onThrow,onAutoThrow,onLead,assistAim,onTick,onCoverage,onSpatialResult,onDone,quality,onFps}=props;
   const elapsed=useRef(0),progress=useRef(0),lastHover=useRef(0);
   const displayYard=motion?.startYard??yard;
   const previewWorld=useMemo(()=>newWorld(displayYard,defense,play,call,routes),[displayYard,defense,play,call,routes]);
@@ -305,13 +309,13 @@ function Scene(props:Props){
     <CameraRig yard={displayYard} view={view} live={live} elapsed={elapsed}/>
     <PerformanceSampler onFps={onFps}/>
     <StadiumDiorama crowd={quality!=='performance'}/>
-    <WoodCabinet/>
-    <Field yard={displayYard} toGo={toGo}/>
+    <MemoCabinet/>
+    <MemoField yard={displayYard} toGo={toGo}/>
     {!motion && <RouteLines yard={displayYard} play={play} call={call} routes={routes} selected={receiver} live={!!live}/>}
-    <InstancedPlayers world={world??previewWorld} active={!!world} motion={motion} progress={progress} selected={receiver}/>
     {world ? <>
-      <SpatialClock world={world} request={throwRequest} game={game} elapsed={elapsed}
+      <SpatialClock world={world} request={throwRequest} game={game} elapsed={elapsed} selected={receiver} assistAim={assistAim} onLead={onLead}
         onTick={onTick} onCoverage={onCoverage} onSpatialResult={onSpatialResult}/>
+      <InstancedPlayers world={world} active={true} motion={null} progress={progress} selected={receiver}/>
       <SpatialBall world={world}/>
       <BallTrail world={world}/>
       <CatchFlash world={world}/>
@@ -319,6 +323,7 @@ function Scene(props:Props){
       <Target aim={aim} active={world.phase==='live'}/>
     </> : <>
       <Clock live={null} motion={motion} defense={defense} protection={call.protection} elapsed={elapsed} progress={progress} onTick={onTick} onSack={()=>{}} onDone={onDone}/>
+      <InstancedPlayers world={previewWorld} active={false} motion={motion} progress={progress} selected={receiver}/>
       <Ball yard={displayYard} motion={motion} progress={progress}/>
     </>}
     {(drawTarget!==null&&!live&&!motion||!!world&&world.phase==='live') &&
