@@ -4,14 +4,20 @@ import { Html, Line, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { StadiumDiorama } from './Stadium';
 import { isEligible, routeStartingX, type TacticalCall } from '../logic/tactics';
+import { actorPoint, closestDefender, newWorld, routeVertices, stepWorld, throwBall as releaseSpatialBall, resultFromWorld, TARGETS, type RouteBook, type World, type Actor } from '../logic/spatial';
+import type { GameState } from '../logic/drill';
 import type { Defense, PlayId, Result } from '../logic/drill';
 import { coveragePoint, passPlay, pressureLimit, receiverPoint, RECEIVERS, type Point, type ReceiverId } from '../logic/throwing';
 
 export type Live = { id: number; play: PlayId };
+export type ThrowRequest = { id: number; point: Point; receiver: ReceiverId };
 export type Motion = { id: number; result: Result; startYard: number; aim?: Point; releaseAt?: number };
 type View = 'sideline' | 'coach';
 type Props = {
   yard: number; toGo: number; defense: Defense; play: PlayId; view: View; call: TacticalCall;
+  game: GameState; routes: RouteBook; drawTarget: ReceiverId|null; throwRequest:ThrowRequest|null;
+  onDrawPoint:(point:Point)=>void; onSpatialResult:(result:Result)=>void;
+  onCoverage:(read:Record<number,number>)=>void;
   live: Live | null; motion: Motion | null; aim: Point; receiver: ReceiverId;
   onAim: (point: Point) => void; onThrow: (point: Point, id?: ReceiverId) => void;
   onSelect: (id: ReceiverId) => void; onTick: (seconds: number) => void;
@@ -159,16 +165,6 @@ function Player({member,yard,defense,live,motion,elapsed,progress,selected,call}
     <Figure x={0} z={0} side={member.side} number={member.num} role={member.role} living={!!live} select={!!live&&member.id===selected}/>
   </group>;
 }
-function Routes({yard,play,receiver,call}:{yard:number;play:PlayId;receiver:ReceiverId;call:TacticalCall}){
-  if(!passPlay(play))return null;
-  return <group>{RECEIVERS.filter(r=>isEligible(r.id,call)).map(r=>{
-    const points=Array.from({length:18},(_,i)=>{
-      const [x,z]=receiverPoint(r.id,play,yard,i*.34,call.formation);
-      return [x,.61,z] as [number,number,number];
-    });
-    return <Line key={r.id} points={points} color={r.id===receiver?'#ffe09a':'#b7dcac'} opacity={r.id === receiver ? .95 : .36} transparent lineWidth={1.5} dashed dashSize={.7} gapSize={.45}/>;
-  })}</group>;
-}
 function Clock({live,motion,defense,protection,elapsed,progress,onTick,onSack,onDone}:{live:Live|null;motion:Motion|null;defense:Defense;protection:TacticalCall['protection'];elapsed:React.RefObject<number>;progress:React.RefObject<number>;onTick:(n:number)=>void;onSack:(n:number)=>void;onDone:()=>void}){
   const fired=useRef(false);
   const lastTick=useRef(-1);
@@ -201,23 +197,6 @@ function Ball({yard,motion,progress}:{yard:number;motion:Motion|null;progress:Re
   });
   return <mesh ref={ref} geometry={ballGeometry} scale={[1.3,.72,.75]}><meshStandardMaterial color="#7f3b21" roughness={.55}/></mesh>;
 }
-function Beacon({id,play,yard,live,elapsed,selected,onSelect,call}:{id:ReceiverId;play:PlayId;yard:number;live:Live|null;elapsed:React.RefObject<number>;selected:boolean;onSelect:(id:ReceiverId)=>void;call:TacticalCall}){
-  const grp=useRef<THREE.Group>(null);
-  const receiver=RECEIVERS.find(r=>r.id===id)!;
-  useFrame(()=>{
-    if(!grp.current||!live)return;
-    const [x,z]=receiverPoint(id,play,yard,elapsed.current,call.formation);
-    grp.current.position.set(x,4.8,z);
-  });
-  if(!live||!isEligible(id,call))return null;
-  return <group ref={grp}>
-    <Html center distanceFactor={21} zIndexRange={[50,10]} style={{pointerEvents:'auto'}}>
-      <button type="button" className={'player-beacon '+(selected?'is-selected':'')} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();onSelect(id);}} title={'Target #'+receiver.number+' '+receiver.label}>
-        <span>{receiver.number}</span><strong>{receiver.label}</strong>
-      </button>
-    </Html>
-  </group>;
-}
 function Target({aim,active}:{aim:Point;active:boolean}){
   if(!active)return null;
   return <group position={[aim[0],.65,aim[1]]}>
@@ -225,32 +204,147 @@ function Target({aim,active}:{aim:Point;active:boolean}){
     <mesh><sphereGeometry args={[.18,8,6]}/><meshBasicMaterial color="#fff5ba" depthTest={false}/></mesh>
   </group>;
 }
+function SpatialFigure({actor,world,selected}:{actor:Actor;world:World;selected:ReceiverId}){
+  const ref=useRef<THREE.Group>(null);
+  useFrame(({clock})=>{
+    if(!ref.current)return;
+    const pt=world.actors.find(a=>a.id===actor.id)!;
+    ref.current.position.set(pt.x, Math.abs(Math.sin(clock.elapsedTime*24+actor.id))*.038,pt.z);
+    // All 22 figures read exactly the same positions used to determine catches and coverage.
+    ref.current.rotation.y=pt.heading*.45;
+  });
+  return <group ref={ref}>
+    <Figure x={0} z={0} side={actor.side==='offense'?'o':'d'} number={actor.number} role={actor.role} living={world.phase==='live'} select={world.phase==='live'&&actor.id===selected}/>
+  </group>;
+}
+function SpatialBall({world}:{world:World}){
+  const mesh=useRef<THREE.Mesh>(null);
+  useFrame(()=>{
+    if(!mesh.current)return;
+    if(world.flight){
+      const [x,y,z]=world.flight.position;
+      mesh.current.position.set(x,y,z);
+      mesh.current.rotation.x=world.flight.elapsed*19;
+    }else{
+      const [x,z]=actorPoint(world,0);
+      mesh.current.position.set(x,2.7,z);
+      mesh.current.rotation.x=0;
+    }
+  });
+  return <mesh ref={mesh} geometry={ballGeometry} scale={[1.2,.7,.7]} castShadow>
+    <meshStandardMaterial color="#864123" roughness={.56}/>
+  </mesh>;
+}
+function SpatialClock({world,request,game,onTick,onCoverage,onSpatialResult,elapsed}:{world:World;request:ThrowRequest|null;game:GameState;onTick:(n:number)=>void;onCoverage:(read:Record<number,number>)=>void;onSpatialResult:(result:Result)=>void;elapsed:React.RefObject<number>}){
+  const reported=useRef(false);
+  const lastTick=useRef(-1);
+  const lastCoverage=useRef(-1);
+  useEffect(()=>{reported.current=false;lastTick.current=-1;lastCoverage.current=-1;elapsed.current=0;},[world,elapsed]);
+  useEffect(()=>{
+    if(!request||world.phase!=='live')return;
+    releaseSpatialBall(world,request.point,request.receiver);
+  },[request?.id,world]);
+  useFrame((_,dt)=>{
+    if(reported.current)return;
+    const steps=Math.max(1,Math.min(4,Math.ceil(dt/(1/60))));
+    let outcome=null;
+    for(let i=0;i<steps&&!outcome;i++)outcome=stepWorld(world,Math.min(1/60,dt/steps));
+    elapsed.current=world.t;
+    const ticks=Math.floor(world.t*10);
+    if(ticks!==lastTick.current){lastTick.current=ticks;onTick(world.t);}
+    const coverageTick=Math.floor(world.t*4);
+    if(coverageTick!==lastCoverage.current){
+      lastCoverage.current=coverageTick;
+      const read:Record<number,number>={};
+      for(const id of TARGETS){
+        const spot=actorPoint(world,id);
+        const defender=closestDefender(world,spot);
+        read[id]=Math.round(Math.hypot(defender.x-spot[0],defender.z-spot[1])*10)/10;
+      }
+      onCoverage(read);
+    }
+    if(outcome){
+      reported.current=true;
+      onSpatialResult(resultFromWorld(game,world,outcome));
+    }
+  });
+  return null;
+}
+function SpatialBeacon({world,id,selected,onSelect}:{world:World;id:ReceiverId;selected:boolean;onSelect:(id:ReceiverId)=>void}){
+  const marker=useRef<THREE.Group>(null);
+  const receiver=RECEIVERS.find(r=>r.id===id)!;
+  useFrame(()=>{
+    if(!marker.current)return;
+    const [x,z]=actorPoint(world,id);
+    marker.current.position.set(x,5.4,z);
+  });
+  if(!isEligible(id,world.call)||world.phase!=='live')return null;
+  return <group ref={marker}>
+    <Html center distanceFactor={22} style={{pointerEvents:'auto'}}>
+      <button className={'player-beacon '+(selected?'is-selected':'')} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();onSelect(id);}}>
+        <span>{receiver.number}</span><strong>{receiver.label}</strong>
+      </button>
+    </Html>
+  </group>;
+}
+function RouteLines({yard,play,call,routes,selected,live}:{yard:number;play:PlayId;call:TacticalCall;routes:RouteBook;selected:ReceiverId;live:boolean}){
+  if(!passPlay(play))return null;
+  return <group>{TARGETS.filter(id=>isEligible(id,call)).map(id=>{
+    const vertices=routeVertices(id,routes[id],call.formation);
+    const points=vertices.map(([x,z])=>[x,.85,Math.max(1,Math.min(99,yard+z))] as [number,number,number]);
+    return <group key={id}>
+      <Line points={points} color={id===selected?'#ffe1a4':'#95d3c3'} transparent opacity={id===selected ? .92 : live ? .22 : .4}
+        lineWidth={id===selected?3:1.5} dashed dashSize={1.1} gapSize={.6}/>
+      {!live && <mesh position={[points.at(-1)![0],.9,points.at(-1)![2]]} rotation={[-Math.PI/2,0,0]}>
+        <ringGeometry args={[.38,.64,12]}/><meshBasicMaterial color={id===selected?'#ffe1a4':'#b6ddd0'} side={THREE.DoubleSide}/>
+      </mesh>}
+    </group>;
+  })}</group>;
+}
 function Scene(props:Props){
-  const {yard,toGo,defense,play,view,live,motion,aim,receiver,call,onAim,onThrow,onSelect,onTick,onSack,onDone}=props;
-  const elapsed=useRef(0);
-  const progress=useRef(0);
+  const {yard,toGo,defense,play,view,call,live,motion,aim,receiver,routes,drawTarget,throwRequest,game,onAim,onDrawPoint,onThrow,onSelect,onTick,onCoverage,onSpatialResult,onDone}=props;
+  const elapsed=useRef(0),progress=useRef(0),lastHover=useRef(0);
   const displayYard=motion?.startYard??yard;
   const members=useMemo(()=>lineup(displayYard,defense,call),[displayYard,defense,call]);
+  const world=useMemo(()=>live?newWorld(yard,defense,play,call,routes):null,[live?.id]);
   return <>
-    <color attach="background" args={['#151b1a']}/>
-    <ambientLight intensity={1.75} color="#fff1d7"/>
-    <directionalLight position={[28,70,-16]} intensity={2.15} color="#fce8c6"/>
+    <color attach="background" args={['#111a18']}/>
+    <fog attach="fog" args={['#111a18',125,235]}/>
+    <ambientLight intensity={1.35} color="#fff0d2"/>
+    <directionalLight position={[28,70,-16]} intensity={2.05} color="#fce8c6" castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024}/>
     <directionalLight position={[-20,30,70]} intensity={.7} color="#9bdbd5"/>
     <CameraRig yard={displayYard} view={view} live={live} elapsed={elapsed}/>
     <StadiumDiorama/>
     <WoodCabinet/>
     <Field yard={displayYard} toGo={toGo}/>
-    {!motion&&<Routes yard={displayYard} play={play} receiver={receiver} call={call}/>}
-    <Clock live={live} motion={motion} defense={defense} protection={call.protection} elapsed={elapsed} progress={progress} onTick={onTick} onSack={onSack} onDone={onDone}/>
-    {members.map(m=><Player key={m.id} member={m} yard={displayYard} defense={defense} live={live} motion={motion} elapsed={elapsed} progress={progress} selected={receiver} call={call}/>)}
-    <Ball yard={displayYard} motion={motion} progress={progress}/>
-    {RECEIVERS.map(r=><Beacon key={r.id} id={r.id} play={play} yard={displayYard} elapsed={elapsed} live={live} selected={r.id===receiver} onSelect={onSelect} call={call}/>)}
-    <Target aim={aim} active={!!live}/>
-    {!!live && <mesh rotation={[-Math.PI/2,0,0]} position={[0,.78,50]}
-      onPointerMove={e=>{e.stopPropagation();onAim([clip(e.point.x,-25,25),clip(e.point.z,1,99)]);}}
-      onPointerDown={e=>{e.stopPropagation();onThrow([clip(e.point.x,-25,25),clip(e.point.z,1,99)]);}}>
-      <planeGeometry args={[53.9,99]}/><meshBasicMaterial transparent opacity={0} depthWrite={false} side={THREE.DoubleSide}/>
-    </mesh>}
+    {!motion && <RouteLines yard={displayYard} play={play} call={call} routes={routes} selected={receiver} live={!!live}/>}
+    {world ? <>
+      <SpatialClock world={world} request={throwRequest} game={game} elapsed={elapsed}
+        onTick={onTick} onCoverage={onCoverage} onSpatialResult={onSpatialResult}/>
+      {world.actors.map(a=><SpatialFigure key={a.id} actor={a} world={world} selected={receiver}/>)}
+      <SpatialBall world={world}/>
+      {TARGETS.map(id=><SpatialBeacon key={id} world={world} id={id} selected={id===receiver} onSelect={onSelect}/>)}
+      <Target aim={aim} active={world.phase==='live'}/>
+    </> : <>
+      <Clock live={null} motion={motion} defense={defense} protection={call.protection} elapsed={elapsed} progress={progress} onTick={onTick} onSack={()=>{}} onDone={onDone}/>
+      {members.map(m=><Player key={m.id} member={m} yard={displayYard} defense={defense} live={null} motion={motion} elapsed={elapsed} progress={progress} selected={receiver} call={call}/>)}
+      <Ball yard={displayYard} motion={motion} progress={progress}/>
+    </>}
+    {(drawTarget!==null&&!live&&!motion||!!world&&world.phase==='live') &&
+      <mesh rotation={[-Math.PI/2,0,0]} position={[0,1.2,50]}
+        onPointerMove={e=>{
+          if(!world||world.phase!=='live')return;
+          if(performance.now()-lastHover.current<95)return;
+          lastHover.current=performance.now();onAim([clip(e.point.x,-25,25),clip(e.point.z,1,99)]);
+        }}
+        onPointerDown={e=>{
+          e.stopPropagation();
+          const point:Point=[clip(e.point.x,-25,25),clip(e.point.z,1,99)];
+          if(drawTarget!==null&&!world)onDrawPoint(point);
+          else if(world?.phase==='live')onThrow(point);
+        }}>
+        <planeGeometry args={[54,99]}/><meshBasicMaterial transparent opacity={0} depthWrite={false} side={THREE.DoubleSide}/>
+      </mesh>}
   </>;
 }
 export default function Board3D(props:Props){
