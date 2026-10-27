@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowRight, Check, ChevronDown, CircleHelp, Clock3, Crosshair, Eye, Flag, Fullscreen, Goal, Keyboard, RotateCcw, Shield, Target, TimerReset, Zap } from 'lucide-react';
+import { ArrowRight, ChevronDown, CircleHelp, Clock3, Crosshair, Eye, Flag, Fullscreen, Goal, Keyboard, RotateCcw, Shield, Target, TimerReset, Zap } from 'lucide-react';
 import Board3D, { type Live, type Motion } from './components/Board3D';
 import { SCENARIOS, PLAYS, fieldSpot, formatClock, initialGame, kickDistance, simulate, useTimeout, type GameState, type PlayId, type Result } from './logic/drill';
 import { RECEIVERS, passPlay, pressureLimit, receiverPoint, resolveSack, resolveThrow, type Point, type ReceiverId } from './logic/throwing';
@@ -14,7 +14,6 @@ const DRIVE_NAMES: Record<string,string> = {
 const ICON: Record<PlayId,string> = {
   quick:'↗',sideline:'⌝',deep:'↑',screen:'↘',inside:'⇧',outside:'↝',spike:'⏱',fieldgoal:'⌁'
 };
-const abbrev=(value:number)=>Math.max(0,Math.round(value)).toString().padStart(2,'0');
 function App() {
   const [scenarioId,setScenarioId]=useState('the-comeback');
   const [game,setGame]=useState<GameState>(()=>initialGame());
