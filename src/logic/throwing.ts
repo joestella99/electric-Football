@@ -1,4 +1,4 @@
-import { type GameState, type PlayId, type Result, type Tempo, fieldSpot, nextDefense } from './drill';
+import { type GameState, type PlayId, type Result, type Tempo, fieldSpot, nextDefense } from './drill.ts';
 
 export type Point = [number, number];
 export type ReceiverId = 7 | 8 | 9 | 10 | 1;
