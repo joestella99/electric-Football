@@ -209,3 +209,9 @@
 .drawing-tip>button:hover{background:#fff6cb}
 @media(max-width:650px){.drawing-tip{width:calc(100% - 18px);font-size:10px;gap:6px;white-space:normal;justify-content:space-between}
 .drawing-tip>span{max-width:190px}.drawing-tip>button{padding:7px;font-size:11px}}
+
+/* Route-time field labels share the exact defensive spacing used for pass resolution. */
+.player-beacon.is-open{border-color:#99e39a;background:rgba(18,56,39,.96);box-shadow:0 0 0 2px #8de49a55,0 5px 12px #0009}
+.player-beacon.is-window{border-color:#edc274;background:rgba(77,53,30,.96)}
+.player-beacon.is-covered{border-color:#db7863;background:rgba(78,31,29,.96)}
+.player-beacon.is-selected{outline:2px solid #fff6c6;outline-offset:1px;filter:brightness(1.13)}
