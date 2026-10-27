@@ -117,7 +117,7 @@ function App() {
 
   // Real late-game urgency: a running clock continues while you choose your next play.
   useEffect(()=>{
-    if(!game.clockRunning||active||finished)return;
+    if(!game.clockRunning||active||finished||help)return;
     const handle=window.setInterval(()=>{
       setGame(old=>{
         if(!old.clockRunning||old.status!=='playing')return old;
@@ -126,7 +126,7 @@ function App() {
       });
     },1000);
     return ()=>window.clearInterval(handle);
-  },[game.clockRunning,active,finished]);
+  },[game.clockRunning,active,finished,help]);
 
   useEffect(()=>{
     const listener=(event:KeyboardEvent)=>{
@@ -189,6 +189,8 @@ function App() {
       {tacticsOpen&&!active&&!finished&&<div className="tactics-sheet">
         <div className="sheet-top"><div><span>OFFENSIVE CONTROL / PRE-SNAP</span><h3>COACH'S BOARD</h3></div><button onClick={()=>setTacticsOpen(false)} aria-label="Close tactics"><X size={20}/></button></div>
         <p className="sheet-cue">{read.shell} · {read.cue}</p>
+        <label>GAME SCENARIO</label>
+        <select className="sheet-scenario" value={scenarioId} onChange={e=>reset(e.target.value)} aria-label="Select game scenario">{SCENARIOS.map(s=><option value={s.id} key={s.id}>{DRIVE_NAMES[s.id]}</option>)}</select>
         <label>OFFENSIVE FORMATION</label>
         <div className="scheme-grid">{FORMATIONS.map(option=><button key={option.id} className={call.formation===option.id?'active':''} onClick={()=>chooseFormation(option.id)}><strong>{option.name}</strong><small>{option.detail}</small></button>)}</div>
         <label>PASS PROTECTION</label>
