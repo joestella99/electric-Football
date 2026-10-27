@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Activity, ArrowDownRight, ArrowRight, Check, ChevronDown, Clock3, Crosshair, Flag, Gamepad2, Maximize2, Pause, Play, RotateCcw, Scan, Shield, Target, Volume2, Zap } from 'lucide-react';
+import { Activity, ArrowRight, Check, ChevronDown, Clock3, Crosshair, Flag, Gamepad2, Maximize2, Play, RotateCcw, Scan, Shield, Target, Volume2, Zap } from 'lucide-react';
 import Board3D, { type Live, type Motion } from './components/Board3D';
 import { SCENARIOS, PLAYS, initialGame, formatClock, fieldSpot, kickDistance, simulate, useTimeout, type GameState, type PlayId, type Result, type Tempo } from './logic/drill';
 import { RECEIVERS, receiverPoint, pressureLimit, passPlay, resolveThrow, resolveSack, type Point, type ReceiverId } from './logic/throwing';
 
 const VERSION='01.0';
-const green='#d5e7bc';
 
 type View='angled'|'top';
 type HistoryItem={id:number;description:string;yards:number;grade:Result['grade'];time:string};
@@ -20,10 +19,6 @@ function SmallLogo() {
 function Digit({label,value,hot=false}:{label:string;value:string|number;hot?:boolean}) {
   return <div className={'digit '+(hot?'digit-hot':'')}><span className="digit-label">{label}</span><strong>{value}</strong></div>;
 }
-function Tag({children,tone}:{children:React.ReactNode;tone?:'orange'|'green'|'red'}) {
- return <span className={'tag '+(tone?'tag-'+tone:'')}>{children}</span>;
-}
-
 function App(){
   const [scenarioId,setScenarioId]=useState(SCENARIOS[0].id);
   const [game,setGame]=useState<GameState>(()=>initialGame());
