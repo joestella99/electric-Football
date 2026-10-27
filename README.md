@@ -5,6 +5,21 @@ Inspired by classic electric tabletop football and the decision-making stakes of
 
 **Play:** https://joestella99.github.io/electric-Football/
 
+## V2.1 — Smoothness & performance
+
+The football scene is now built to avoid hundreds of individual player mesh draw calls:
+
+- All 22 miniatures share **11 GPU-instanced geometry parts**, including toy bases, bodies, helmets, arms, legs, face masks and ground shadows. One animation update controls them all.
+- Static yard-line hash marks are GPU instanced too; fixed field geometry is memoized so clock updates don't rebuild it.
+- The costly four auxiliary stadium point lights are removed. Graphics settings can hide spectators and reduce the internal render resolution on slower hardware.
+- **Graphics button in the top-right** cycles Performance → Balanced → High. On wider screens it also displays measured frame rate. Phones default to Performance. Use this control to compare FPS on your device.
+- Simulation time steps stay consistent at low frame rates, so the football and receiver timing don't slow down just because the GPU is struggling.
+- UI clock/coverage updates run at much lower frequencies than the physics renderer; keyboard events are installed once instead of repeatedly.
+- **One-click passing:** click an on-field receiver name to throw a real-world-modelled lead pass immediately, or click an exact point on the field to throw manually. SPACE/THROW NOW also uses a forecast of actual receiver motion instead of a separate scripted path.
+- Camera easing now follows the play without abrupt target jumps.
+
+The game can still run slowly on older/limited graphics hardware; no real browser benchmark across devices has been completed. The FPS toggle provides an actual device-level reading to diagnose that.
+
 ## V2 — The live route / catch-point engine
 
 **The passing game is no longer a probability roll.** All 22 miniature players share one continuously updated spatial model. Receiver routes are interpolated through coach-selected waypoints; defenders pursue and adjust to them; rushers compress the pocket; the thrown ball has a visible flight path and landing point.
