@@ -323,9 +323,13 @@ function SpatialBeacon({world,id,selected,onSelect}:{world:World;id:ReceiverId;s
     marker.current.position.set(x,5.4,z);
   });
   if(!isEligible(id,world.call)||world.phase!=='live')return null;
+  const spot=actorPoint(world,id);
+  const defender=closestDefender(world,spot);
+  const gap=Math.hypot(defender.x-spot[0],defender.z-spot[1]);
+  const window=gap>7?'is-open':gap>3.5?'is-window':'is-covered';
   return <group ref={marker}>
     <Html center distanceFactor={22} style={{pointerEvents:'auto'}}>
-      <button className={'player-beacon '+(selected?'is-selected':'')} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();onSelect(id);}}>
+      <button className={'player-beacon '+window+' '+(selected?'is-selected':'')} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();onSelect(id);}}>
         <span>{receiver.number}</span><strong>{receiver.label}</strong>
       </button>
     </Html>
