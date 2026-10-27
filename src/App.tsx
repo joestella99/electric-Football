@@ -13,7 +13,7 @@ function EightBit({children}:{children:React.ReactNode}) {return <span className
 function SmallLogo() {
   return <div className="logo-lockup">
     <div className="logo-square"><span>EV</span><span className="logo-volt">↯</span></div>
-    <div className="logo-copy"><span>ELECTRIC</span><strong>FOOTBALL<span className="logo-reg">®-INSPIRED</span></strong></div>
+    <div className="logo-copy"><span>ELECTRIC</span><strong>FOOTBALL<span className="logo-reg">TABLETOP EDITION</span></strong></div>
   </div>;
 }
 function Digit({label,value,hot=false}:{label:string;value:string|number;hot?:boolean}) {
