@@ -5,6 +5,30 @@ Inspired by classic electric tabletop football and the decision-making stakes of
 
 **Play:** https://joestella99.github.io/electric-Football/
 
+## V3 — The Coach's Game
+
+A gameplay-first overhaul focused on coaching decisions, recognizable defensive football and responsive single-screen play. **This is still an independently authored arcade physics model, not an NFL-licensed simulator.**
+
+### Pre-snap
+- Call a concept (Quick Game, Sail/Flood, Vertical Shot, RB Screen, Inside Zone or Outside Zone), offensive formation, and protection.
+- Customize every eligible receiver route with a preset or draw your own path directly on the field.
+- Identify the defensive **shell** and pressure look without knowing the complete coverage until the snap.
+
+### Post-snap
+- Defense rotates into distinct deterministic **Cover 0, Cover 1, Cover 2, Cover 3 or Quarters**; cornerbacks, safeties and linebackers have different man or zone responsibilities.
+- Read the identified coverage, receiver separation and recommended QB progression; use the **TACTICAL** overhead camera to see subtle zone responsibility overlays.
+- The QB camera stays stable while you read, then follows the ball on release. Click a receiver to make an assisted physical lead throw or aim anywhere manually to choose the landing spot.
+- Receivers accelerate through cuts, defenders read routes and break toward the descending ball, and blocking changes pass-rush timing. A catch/breakup/interception is calculated from physical separation at the landing spot, not a random completion roll.
+- Runs are now live spatial plays, not randomized yardage: QB handoff, carrier path, blockers, pursuit and tackles all update in the same engine.
+
+### Presentation
+- Procedural textured turf replaces layered flat stripes with fewer draw calls.
+- All-22 coverage overlays, camera easing, real-time read indicators, and original synthesized sound cues for snap, release and play results.
+- Graphics/FPS button retains Performance, Balanced and High presets; no extra scrolling during play.
+
+### Known simulation limits
+The physics are simplified positional/pursuit rules with acceleration, not full rigid-body or motion-captured tackle physics. The playbook and defensive assignment logic are intended to *teach reads* through meaningful visual consequences; they do **not** reproduce NFL play-by-play, licensed athletes, or calibrated real-world outcome probabilities. Collision animations and complete defensive/offensive drives remain future work. A visual browser playtest on multiple GPU/phone combinations is still necessary.
+
 ## V2.1 — Smoothness & performance
 
 The football scene is now built to avoid hundreds of individual player mesh draw calls:
