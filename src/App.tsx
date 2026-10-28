@@ -228,7 +228,7 @@ function App() {
         <div className="team-score away-score"><b>{game.theirs}</b><span className="team-name">{opposingTeam.abbr}</span><span className="team-emblem away" style={{background:opposingTeam.primary,borderColor:opposingTeam.secondary,color:'#fff'}}>{opposingTeam.abbr}</span></div>
       </div>
       <div className="toolbar">
-        <button className="matchup-switch" onClick={()=>setLobbyOpen(true)} title="Choose NFL teams or historical challenge"><Shield size={15}/><span>CHANGE MATCHUP</span></button>
+        <button className="matchup-switch" disabled={active} onClick={()=>setLobbyOpen(true)} title="Choose NFL teams or historical challenge between plays"><Shield size={15}/><span>CHANGE MATCHUP</span></button>
         <button className="quality-toggle" onClick={()=>setQuality(q=>q==='performance'?'balanced':q==='balanced'?'high':'performance')} title="Switch between performance, balanced and high graphics settings" aria-label={'Graphics: '+quality+', '+(fps??'--')+' FPS'}><Gauge size={15}/><span>{quality.toUpperCase()} · {fps??'--'} FPS</span></button>
         <button className="icon-button" aria-label={soundOn?'Mute game audio':'Enable game audio'} title={soundOn?'Mute sounds':'Enable sounds'} onClick={()=>setSoundOn(v=>!v)}>{soundOn?<Volume2 size={18}/>:<VolumeX size={18}/>}</button>
         <button className="icon-button" aria-label="How to play" title="How to play" onClick={()=>setHelp(true)}><CircleHelp size={19}/></button>
@@ -323,7 +323,7 @@ function App() {
           <div className="secondary-actions">
             <button disabled={active||finished||!game.clockRunning||game.timeouts<1} onClick={timeout}><TimerReset size={14}/> TIMEOUT <b>{game.timeouts}</b></button>
             <button disabled={active||finished} onClick={()=>special('spike')}><Clock3 size={14}/> SPIKE</button>
-            <button disabled={active||finished} onClick={()=>special('fieldgoal')}><Goal size={14}/> KICK <small>{kickDistance(game.yard)}YD</small></button>
+            <button disabled={active||finished||scenarioId==='lviii-ot'} title={scenarioId==='lviii-ot'?'Overtime challenge: drive for a touchdown':'Attempt a field goal'} onClick={()=>special('fieldgoal')}><Goal size={14}/> KICK <small>{scenarioId==='lviii-ot'?'TD ONLY':kickDistance(game.yard)+'YD'}</small></button>
           </div>
         </div>
       </>}
