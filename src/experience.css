@@ -231,3 +231,21 @@
 }
 @media(max-width:380px){.v5-brand>div{display:none}.v5-brand{flex:0}.v5-score-team span{min-width:25px;width:25px;font-size:9px}.v5-score-team b{font-size:22px}.v5-score-clock{min-width:69px}.v5-throw-toolbar{min-width:50px;width:50px}.v5-receiver strong{font-size:10px}}
 @media(prefers-reduced-motion:reduce){.v5-shell *{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* Pre-snap "war room" does not use WebGL: the GPU wakes up only when the offense breaks the huddle. */
+.v5-call-situation{position:absolute;z-index:2;top:0;left:0;bottom:0;width:max(19vw,240px);padding:clamp(18px,2vw,31px);background:linear-gradient(170deg,#162f26,#071a15);border-right:1px solid #537860;display:flex;flex-direction:column;gap:10px;overflow:hidden}
+.v5-call-situation .v5-eyebrow{font-size:9px;letter-spacing:.8px}
+.v5-call-situation h3{font:900 clamp(36px,4.6vw,59px)/.9 'Barlow Condensed',sans-serif;color:#efd19b;margin:12px 0 0;letter-spacing:-.7px}
+.v5-call-situation h3 sup{font-size:13px;vertical-align:super}
+.v5-call-situation p{font:700 10px 'DM Mono',monospace;color:#b4ceba;margin:0}
+.v5-field-mini{position:relative;min-height:90px;flex:1;border:2px solid #527761;max-height:330px;background:repeating-linear-gradient(to top,#2b6248 0%,#2b6248 9.5%,#e0e3c52a 9.6%,#295b44 10%);overflow:hidden}
+.v5-field-mini>span{position:absolute;top:10px;left:50%;transform:translateX(-50%);color:#dfe6d4;font:800 12px 'Barlow Condensed',sans-serif}
+.v5-field-mini>small{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);white-space:nowrap;color:#ffecb8aa;font:900 15px 'Barlow Condensed',sans-serif}
+.v5-field-mini>b{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);color:#fff1cb;font:900 11px 'Barlow Condensed',sans-serif;white-space:nowrap}
+.v5-field-track{position:absolute;left:0;right:0;height:3px;background:#f3c46f;box-shadow:0 0 12px #fad591;z-index:2}
+.v5-field-track>span{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:block;width:17px;height:17px;border:3px solid #fff0c9;border-radius:50%;background:#c45c39}
+.v5-clock-warning{display:flex;align-items:center;gap:10px;border-top:1px solid #537b62;padding-top:13px;color:#efd29c}
+.v5-clock-warning>span{display:flex;flex-direction:column;gap:3px;font:900 24px 'DM Mono',monospace}
+.v5-clock-warning small{font:700 9px 'DM Mono',monospace;color:#adbcae}
+.v5-difficulty{font:700 9px 'DM Mono',monospace;color:#87a693}
+@media(max-width:950px){.v5-call-situation{width:0;display:none}}
