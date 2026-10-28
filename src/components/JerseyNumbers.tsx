@@ -1,50 +1,65 @@
 import {useEffect,useMemo,useRef} from 'react';
 import {useFrame} from '@react-three/fiber';
 import * as THREE from 'three';
+import {passingButtonFor,passPlay} from '../logic/throwing';
+import {isEligible} from '../logic/tactics';
 import type {World,Actor} from '../logic/spatial';
 
-/** Fixed-size number plates above every miniature. No labels follow React state:
- * three.js updates 22 world transforms directly while the simulation advances.
+/** Camera-facing identifiers with a big throw key (1–5) above an eligible
+ * receiver, and a smaller actual jersey number. All 22 miniatures stay
+ * identifiable, including defenders and linemen. Transforms update directly
+ * in useFrame without generating React re-renders.
  */
 export default function JerseyNumbers({world}:{world:World}){
  const sprites=useRef<(THREE.Sprite|null)[]>([]);
- const textures=useMemo(()=>{
-  const cache=new Map<string,THREE.CanvasTexture>();
+ const plates=useMemo(()=>{
+  const cache=new Map<number,{texture:THREE.CanvasTexture,button:number|null}>();
   if(typeof document==='undefined')return cache;
-  for(const a of world.actors){
-   const text=String(a.number);
-   const key=(a.side==='offense'?'O':'D')+text;
-   if(cache.has(key))continue;
+  for(const actor of world.actors){
+   const possible=passingButtonFor(actor.id);
+   const button=passPlay(world.play)&&possible!==null&&isEligible(actor.id,world.call)?possible:null;
    const canvas=document.createElement('canvas');
-   canvas.width=128;canvas.height=90;
+   canvas.width=168;canvas.height=128;
    const ctx=canvas.getContext('2d');
    if(!ctx)continue;
-   const isOffense=a.side==='offense';
-   ctx.fillStyle=isOffense?'#132c25':'#301e20';
-   ctx.beginPath();ctx.roundRect(5,8,118,69,13);ctx.fill();
-   ctx.strokeStyle=isOffense?'#f6d68b':'#f8b8ac';ctx.lineWidth=6;ctx.stroke();
-   ctx.font='900 56px Arial, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
-   ctx.fillStyle='#fffbee';ctx.fillText(text,64,43);
-   const t=new THREE.CanvasTexture(canvas);
-   t.colorSpace=THREE.SRGBColorSpace;
-   t.generateMipmaps=true;t.minFilter=THREE.LinearMipmapLinearFilter;
-   cache.set(key,t);
+   ctx.clearRect(0,0,168,128);
+   ctx.fillStyle=button!==null?'#e9c585':actor.side==='offense'?'#163629':'#422a2b';
+   ctx.beginPath();ctx.roundRect(7,8,154,112,15);ctx.fill();
+   ctx.strokeStyle=button!==null?'#fff4d1':actor.side==='offense'?'#f6d68b':'#f6b5a9';
+   ctx.lineWidth=5;ctx.stroke();
+   if(button!==null){
+     ctx.fillStyle='#102f25';
+     ctx.font='900 78px Arial, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+     ctx.fillText(String(button),84,51);
+     ctx.font='800 22px Arial, sans-serif';
+     ctx.fillText('THROW   #'+actor.number,84,101);
+   }else{
+     ctx.font='900 65px Arial, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+     ctx.fillStyle='#fff8df';ctx.fillText(String(actor.number),84,65);
+   }
+   const texture=new THREE.CanvasTexture(canvas);
+   texture.colorSpace=THREE.SRGBColorSpace;
+   texture.minFilter=THREE.LinearFilter;texture.magFilter=THREE.LinearFilter;
+   cache.set(actor.id,{texture,button});
   }
   return cache;
  },[world]);
- useEffect(()=>()=>{for(const texture of textures.values())texture.dispose();},[textures]);
+ useEffect(()=>()=>{for(const plate of plates.values())plate.texture.dispose();},[plates]);
  useFrame(()=>{
   for(let i=0;i<world.actors.length;i++){
    const sprite=sprites.current[i];if(!sprite)continue;
    const actor=world.actors[i];
-   sprite.position.set(actor.x,4.55,actor.z);
+   sprite.position.set(actor.x,plates.get(actor.id)?.button!==null?5.8:4.6,actor.z);
   }
  });
  return <group>
-  {world.actors.map((a:Actor,i)=>{
-   const texture=textures.get((a.side==='offense'?'O':'D')+a.number);
-   return <sprite key={a.id} ref={node=>{sprites.current[i]=node;}} position={[a.x,4.55,a.z]} scale={[2.28,1.6,1]}>
-    <spriteMaterial map={texture??null} transparent depthTest={false} depthWrite={false} toneMapped={false}/>
+  {world.actors.map((actor:Actor,i)=>{
+   const plate=plates.get(actor.id);
+   const isThrow=plate?.button!==null&&plate?.button!==undefined;
+   return <sprite key={actor.id} ref={node=>{sprites.current[i]=node;}}
+    position={[actor.x,isThrow?5.8:4.6,actor.z]}
+    scale={isThrow?[3.7,2.8,1]:[2.15,1.65,1]}>
+    <spriteMaterial map={plate?.texture??null} transparent depthTest={false} depthWrite={false} toneMapped={false}/>
    </sprite>;
   })}
  </group>;
