@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { StadiumDiorama } from './Stadium';
 import { isEligible, type TacticalCall } from '../logic/tactics';
 import InstancedPlayers from './InstancedPlayers';
+import type {HistoricalPersonnel} from '../logic/nflRoster';
 import CoverageOverlay from './CoverageOverlay';
 import FieldTurf from './FieldTurf';
 import { actorPoint, closestDefender, newWorld, predictLead, routeVertices, stepWorld, throwBall as releaseSpatialBall, resultFromWorld, TARGETS, type RouteBook, type World } from '../logic/spatial';
@@ -22,7 +23,7 @@ type Props = {
   onDrawPoint:(point:Point)=>void; onSpatialResult:(result:Result)=>void;
   onAutoThrow:(receiver:ReceiverId)=>void;
   onLead:(point:Point)=>void; assistAim:boolean;
-  quality:'performance'|'balanced'|'high'; onFps:(fps:number)=>void; offenseColor:string;opponentColor:string;
+  quality:'performance'|'balanced'|'high'; onFps:(fps:number)=>void; offenseColor:string;opponentColor:string;personnel:HistoricalPersonnel|null;
   onCoverage:(read:Record<number,number>)=>void;
   live: Live | null; motion: Motion | null; aim: Point; receiver: ReceiverId;
   onAim: (point: Point) => void; onThrow: (point: Point, id?: ReceiverId) => void;
@@ -258,7 +259,7 @@ function SpatialClock({world,request,game,onTick,onCoverage,onSpatialResult,onLe
   });
   return null;
 }
-function SpatialBeacon({world,id,selected,onAutoThrow}:{world:World;id:ReceiverId;selected:boolean;onAutoThrow:(id:ReceiverId)=>void}){
+function SpatialBeacon({world,id,selected,onAutoThrow,personnel}:{world:World;id:ReceiverId;selected:boolean;onAutoThrow:(id:ReceiverId)=>void;personnel:HistoricalPersonnel|null}){
   const marker=useRef<THREE.Group>(null);
   const receiver=RECEIVERS.find(r=>r.id===id)!;
   useFrame(()=>{
@@ -274,7 +275,7 @@ function SpatialBeacon({world,id,selected,onAutoThrow}:{world:World;id:ReceiverI
   return <group ref={marker}>
     <Html center distanceFactor={22} style={{pointerEvents:'auto'}}>
       <button className={'player-beacon '+window+' '+(selected?'is-selected':'')} onPointerDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();onAutoThrow(id);}}>
-        <span>{receiver.number}</span><strong>{receiver.label}</strong>
+        <span>{personnel?.skill[id].number??receiver.number}</span><strong>{personnel?.skill[id].last??receiver.label}</strong>
       </button>
     </Html>
   </group>;
@@ -307,12 +308,18 @@ function PerformanceSampler({onFps}:{onFps:(fps:number)=>void}){
   });
   return null;
 }
+function assignPersonnel(world:World,personnel:HistoricalPersonnel|null):World{
+  if(!personnel)return world;
+  world.actors[0].number=Number(personnel.qb.number);
+  for(const id of TARGETS)world.actors[id].number=Number(personnel.skill[id].number);
+  return world;
+}
 function Scene(props:Props){
-  const {yard,toGo,defense,play,view,call,live,motion,aim,receiver,routes,drawTarget,throwRequest,game,onAim,onDrawPoint,onThrow,onAutoThrow,onLead,assistAim,onTick,onCoverage,onSpatialResult,onDone,quality,onFps,offenseColor,opponentColor}=props;
+  const {yard,toGo,defense,play,view,call,live,motion,aim,receiver,routes,drawTarget,throwRequest,game,onAim,onDrawPoint,onThrow,onAutoThrow,onLead,assistAim,onTick,onCoverage,onSpatialResult,onDone,quality,onFps,offenseColor,opponentColor,personnel}=props;
   const elapsed=useRef(0),progress=useRef(0),lastHover=useRef(0);
   const displayYard=motion?.startYard??yard;
-  const previewWorld=useMemo(()=>newWorld(displayYard,defense,play,call,routes,game.plays),[displayYard,defense,play,call,routes,game.plays]);
-  const world=useMemo(()=>live?newWorld(yard,defense,play,call,routes,game.plays):null,[live?.id]);
+  const previewWorld=useMemo(()=>assignPersonnel(newWorld(displayYard,defense,play,call,routes,game.plays),personnel),[displayYard,defense,play,call,routes,game.plays,personnel]);
+  const world=useMemo(()=>live?assignPersonnel(newWorld(yard,defense,play,call,routes,game.plays),personnel):null,[live?.id]);
   return <>
     <color attach="background" args={['#111a18']}/>
     <fog attach="fog" args={['#111a18',125,235]}/>
@@ -333,7 +340,7 @@ function Scene(props:Props){
       <SpatialBall world={world}/>
       <BallTrail world={world}/>
       <CatchFlash world={world}/>
-      {passPlay(play)&&TARGETS.map(id=><SpatialBeacon key={id} world={world} id={id} selected={id===receiver} onAutoThrow={onAutoThrow}/>)}
+      {passPlay(play)&&TARGETS.map(id=><SpatialBeacon key={id} world={world} id={id} selected={id===receiver} onAutoThrow={onAutoThrow} personnel={personnel}/>)}
       <Target aim={aim} active={passPlay(play)&&world.phase==='live'}/>
     </> : <>
       <Clock live={null} motion={motion} defense={defense} protection={call.protection} elapsed={elapsed} progress={progress} onTick={onTick} onSack={()=>{}} onDone={onDone}/>
