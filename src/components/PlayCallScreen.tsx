@@ -1,5 +1,5 @@
 import {useMemo,useState} from 'react';
-import {ArrowRight,BookOpen,Clock3,Crosshair,Play,Shield,TimerReset,Zap,Goal} from 'lucide-react';
+import {ArrowRight,BookOpen,Clock3,Crosshair,Shield,TimerReset,Zap,Goal} from 'lucide-react';
 import {ROUTE_OPTIONS,routeVertices,type RouteBook,type RouteKind} from '../logic/spatial';
 import {FORMATIONS,PROTECTIONS,isEligible,type TacticalCall} from '../logic/tactics';
 import type {Point,ReceiverId} from '../logic/throwing';
@@ -15,7 +15,7 @@ type Props={
  routes:RouteBook;onRoute:(id:ReceiverId,kind:RouteKind)=>void;
  onWaypoint:(id:ReceiverId,point:Point)=>void;name:(id:ReceiverId)=>string;
  jersey:(id:ReceiverId)=>string;clock:string;clockRunning:boolean;downs:string;
- yards:string;timeouts:number;onTimeout:()=>void;onSnap:()=>void;onCheck:()=>void;
+ yards:string;timeouts:number;onTimeout:()=>void;onSetPlay:()=>void;
  onSpecial:(play:'spike'|'fieldgoal')=>void; fieldGoalYards:number;canKick:boolean;
  tempo:Tempo;onTempo:(v:Tempo)=>void;rpoChoice:'give'|'pull';onRpoChoice:(v:'give'|'pull')=>void;
 };
@@ -72,8 +72,8 @@ export default function PlayCallScreen(p:Props){
  const onRoute=(kind:RouteKind)=>{p.onRoute(editor,kind);setDrawing(false);};
  return <section className="pc-shell" aria-label="Offensive play calling">
    <header className="pc-head">
-    <div className="pc-headline"><span><BookOpen size={16}/> {p.team} OFFENSE · GAME PLAN</span><h2>MAKE THE CALL.</h2><small>{p.downs} · {p.yards} · {p.clock} LEFT</small></div>
-    <div className="pc-head-actions"><span className="pc-clock"><Clock3 size={15}/>{p.clock} {p.clockRunning?'· RUNNING':'· STOPPED'}</span><button className="pc-check-button" onClick={p.onCheck}><Shield size={15}/> CHECK DEFENSE</button><button className="pc-snap-button" onClick={p.onSnap}><Play size={18} fill="currentColor"/> SNAP <ArrowRight size={18}/></button></div>
+    <div className="pc-headline"><span><BookOpen size={16}/> {p.team} OFFENSE · GAME PLAN</span><h2>DESIGN YOUR PLAY.</h2><small>1 · CHOOSE A CALL &nbsp; 2 · SET FORMATION &nbsp; 3 · VIEW FIELD &amp; SNAP</small></div>
+    <div className="pc-head-actions"><span className="pc-clock"><Clock3 size={15}/>{p.clock} · COACH PAUSE</span><button className="pc-snap-button" onClick={p.onSetPlay}><Shield size={18}/> SET PLAY <ArrowRight size={18}/></button></div>
    </header>
    <div className="pc-families" role="tablist" aria-label="Choose offensive play family">
     {(['RUN','PASS','RPO','TRICK'] as Family[]).map(f=><button key={f} role="tab" aria-selected={p.family===f} className={p.family===f?'active':''} onClick={()=>{p.onFamily(f);setEditor(7);setDrawing(false);}}>
@@ -119,8 +119,8 @@ export default function PlayCallScreen(p:Props){
         <button disabled={!p.clockRunning} onClick={()=>p.onSpecial('spike')} title="Stop the clock by sacrificing a down"><Clock3 size={15}/> SPIKE</button>
         <button disabled={!p.canKick} onClick={()=>p.onSpecial('fieldgoal')} title="Kick to tie or win the game"><Goal size={15}/> FG {p.fieldGoalYards} YDS</button>
       </div>
-      <div className="pc-actions"><button disabled={!p.clockRunning||p.timeouts<1} onClick={p.onTimeout}><TimerReset size={15}/> TIMEOUT ({p.timeouts})</button><button onClick={p.onCheck} className="pc-check-secondary"><Shield size={16}/> WALK TO LINE / AUDIBLE</button>
-       <button onClick={p.onSnap} className="pc-primary"><Zap size={18}/> SNAP THE BALL <ArrowRight size={20}/></button></div>
+      <div className="pc-actions"><button disabled={!p.clockRunning||p.timeouts<1} onClick={p.onTimeout}><TimerReset size={15}/> TIMEOUT ({p.timeouts})</button><div className="pc-setting-note"><Clock3 size={13}/> NO RUSH WHILE DESIGNING · TIME CHARGED AT SNAP</div>
+       <button onClick={p.onSetPlay} className="pc-primary"><Zap size={18}/> SET PLAY &amp; VIEW FIELD <ArrowRight size={20}/></button></div>
     </aside>
    </div>
   </section>;
