@@ -4,11 +4,13 @@ import {ROUTE_OPTIONS,routeVertices,type RouteBook,type RouteKind} from '../logi
 import {FORMATIONS,PROTECTIONS,isEligible,type TacticalCall} from '../logic/tactics';
 import type {Point,ReceiverId} from '../logic/throwing';
 import type {TeamConcept} from '../logic/nfl';
+import type {DefensiveScout} from '../logic/strategy';
 
 type Family='RUN'|'PASS'|'RPO'|'TRICK';
 type Tempo='hurry'|'huddle'|'drain';
 type Props={
  team:string;family:Family;onFamily:(v:Family)=>void;book:TeamConcept[];selected:TeamConcept;
+ scout:DefensiveScout; scoreLead:number; timeoutsLeft:number;
  onPick:(c:TeamConcept)=>void;call:TacticalCall;onCall:(v:TacticalCall)=>void;
  routes:RouteBook;onRoute:(id:ReceiverId,kind:RouteKind)=>void;
  onWaypoint:(id:ReceiverId,point:Point)=>void;name:(id:ReceiverId)=>string;
@@ -93,7 +95,10 @@ export default function PlayCallScreen(p:Props){
        <b>#{p.jersey(id)}</b><small>{p.name(id)}</small></button>)}</div>
     </div>
     <aside className="pc-adjust">
-      <div className="pc-section-title">PLAY DETAILS <span><Shield size={14}/> COACH</span></div>
+      <div className="pc-section-title">DEFENSIVE INTELLIGENCE <span><Shield size={14}/> SCOUT</span></div>
+      <div className="pc-scout"><div><strong>{p.scout.shell}</strong><span>{p.scout.pressure} PRESSURE</span></div>
+        <p>{p.scout.note}</p><small>{p.scout.recommendation}</small></div>
+      <div className="pc-section-title">YOUR CALL <span><Zap size={13}/> GAME PLAN</span></div>
       <h3>{p.selected.name}</h3><p className="pc-note">{p.selected.tip}</p>
       <div className="pc-adjust-options">
         <label>FORMATION<select value={p.call.formation} onChange={e=>p.onCall({...p.call,formation:e.target.value as TacticalCall['formation']})}>{FORMATIONS.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select></label>
@@ -108,6 +113,7 @@ export default function PlayCallScreen(p:Props){
       {p.selected.family!=='RUN'&&p.selected.family!=='RPO'&&<div className="pc-option-split"><span>PLAY ACTION</span><div><button className={!p.call.playAction?'active':''} onClick={()=>p.onCall({...p.call,playAction:false})}>OFF</button><button className={!!p.call.playAction?'active':''} onClick={()=>p.onCall({...p.call,playAction:true})}>ON</button></div></div>}
       {editingAllowed&&<div className="pc-option-split"><span>QB ROLLOUT</span><div>{(['none','left','right'] as const).map(v=><button key={v} className={(p.call.rollout??'none')===v?'active':''} onClick={()=>p.onCall({...p.call,rollout:v})}>{v.toUpperCase()}</button>)}</div></div>}
       <div className="pc-option-split"><span>TEMPO / CLOCK</span><div>{(['hurry','huddle','drain'] as Tempo[]).map(v=><button key={v} className={p.tempo===v?'active':''} onClick={()=>p.onTempo(v)}>{v==='hurry'?'NO HUDDLE':v==='drain'?'MILK':'HUDDLE'}</button>)}</div></div>
+      <div className="pc-situation-warning">{p.scoreLead>=0?'PROTECT THE LEAD':'CHASING '+Math.abs(p.scoreLead)+' POINTS'} · {p.timeoutsLeft} TO LEFT</div>
       <div className="pc-actions"><button disabled={!p.clockRunning||p.timeouts<1} onClick={p.onTimeout}><TimerReset size={15}/> TIMEOUT ({p.timeouts})</button><button onClick={p.onSnap} className="pc-primary"><Zap size={18}/> SNAP THE BALL <ArrowRight size={20}/></button></div>
     </aside>
    </div>
