@@ -57,8 +57,10 @@ function CameraRig({yard,view,world}:{yard:number;view:View;world:World|null}){
    focus.current.set(0,.5,yard+13);
   }else{
    // Lock lateral position behind QB. A small vertical follow keeps the ball visible.
-   pose.current.set(0,portrait?53:36,spot-(portrait?37:27));
-   focus.current.set(0,1.6,lookZ);
+   // Stay directly behind the QB even on designed rollouts.
+   const axis=qb?.x??0;
+   pose.current.set(axis,portrait?53:36,spot-(portrait?37:27));
+   focus.current.set(axis,1.6,lookZ);
   }
   const k=initialized.current?1-Math.exp(-Math.min(dt,.1)*3.6):1;
   camera.position.lerp(pose.current,k);
