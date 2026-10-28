@@ -16,14 +16,15 @@ type View='sideline'|'coach';
 const ROSTER=RECEIVERS.map(r=>r.id);
 const categorise=(c:TeamConcept):Category=>c.family==='RUN'?'RUN':c.play==='deep'?'SHOT':'QUICK';
 const clamp=(n:number,a:number,b:number)=>Math.min(b,Math.max(a,n));
-function RoutePreview({concept,large=false}:{concept:TeamConcept;large?:boolean}){
+function RoutePreview({concept,large=false,onWaypoint}:{concept:TeamConcept;large?:boolean;onWaypoint?:(point:Point)=>void}){
  const routes=([7,8,9,10,1] as ReceiverId[]).filter(id=>isEligible(id,{formation:concept.formation,protection:concept.protection}));
  const paths=routes.map((id,i)=>{
    const vertices=routeVertices(id,concept.routes[id],concept.formation);
    const points=vertices.map(([x,z])=>[73+x*2.35,129-z*1.57] as const);
    return {id,i,points};
  });
- return <svg className={'route-preview '+(large?'route-preview-large':'')} viewBox="0 0 146 142" role="img" aria-label={'Route diagram: '+concept.name}>
+ return <svg className={'route-preview '+(large?'route-preview-large':'')+(onWaypoint?' route-drawing':'')} viewBox="0 0 146 142" role="img" aria-label={'Route diagram: '+concept.name}
+   onClick={onWaypoint?e=>{const r=e.currentTarget.getBoundingClientRect();const x=146*(e.clientX-r.left)/r.width;const y=142*(e.clientY-r.top)/r.height;onWaypoint([clamp((x-73)/2.35,-25.5,25.5),clamp((129-y)/1.57,0,72)]);}:undefined}>
    <rect x="1" y="1" width="144" height="140" rx="5" fill="#173b32"/>
    {[26,51,76,101,126].map(y=><line key={y} x1="3" x2="143" y1={y} y2={y} stroke="#8cac8d" strokeOpacity=".24" strokeWidth="1"/>)}
    <line x1="3" x2="143" y1="129" y2="129" stroke="#c7e5ce" strokeOpacity=".85" strokeDasharray="5 2"/>
@@ -64,6 +65,7 @@ function GameExperience(){
  const [sound,setSound]=useState(true);
  const [routeEditor,setRouteEditor]=useState<ReceiverId>(7);
  const [editingRoutes,setEditingRoutes]=useState(false);
+ const [drawingRoute,setDrawingRoute]=useState(false);
  const [history,setHistory]=useState<{id:number;label:string;gain:number;clock:number}[]>([]);
  const [driveInfo,setDriveInfo]=useState(false);
  const [showHelp,setShowHelp]=useState(false);
@@ -88,7 +90,7 @@ function GameExperience(){
   const c=getFirst(offense);
   setTeamId(offense);setOpponentId(defense);setScenarioId(id);
   setGame({...fresh});setChosenId(c.id);setCall(initialCustom(c));setRoutes(c.routes);
-  setReceiver(7);setRouteEditor(7);setEditingRoutes(false);
+  setReceiver(7);setRouteEditor(7);setEditingRoutes(false);setDrawingRoute(false);
   setStage('calling');setFilter('ALL');setLive(null);setThrowRequest(null);
   setResult(null);setHistory([]);setElapsed(0);setCoverage({});
   setView('sideline');setLobbyOpen(false);setStarted(true);setDriveInfo(false);
@@ -103,9 +105,9 @@ function GameExperience(){
  const selectPlay=(concept:TeamConcept)=>{
   if(stage!=='calling')return;
   setChosenId(concept.id);setCall(initialCustom(concept));setRoutes(concept.routes);
-  setReceiver(7);setRouteEditor(7);setEditingRoutes(false);
+  setReceiver(7);setRouteEditor(7);setEditingRoutes(false);setDrawingRoute(false);
  };
- const breakHuddle=()=>{if(stage==='calling'){setEditingRoutes(false);setStage('ready');}};
+ const breakHuddle=()=>{if(stage==='calling'){setEditingRoutes(false);setDrawingRoute(false);setStage('ready');}};
  const snap=()=>{
   if(stage!=='ready'||game.status!=='playing')return;
   playCue('snap',sound);
@@ -133,8 +135,12 @@ function GameExperience(){
  };
  const callTimeout=()=>{if(game.clockRunning&&game.timeouts>0){setGame(s=>useTimeout(s));playCue('snap',sound);}};
  const editReceiverRoute=(id:ReceiverId,kind:RouteBook[ReceiverId]['kind'])=>{
-  setRoutes(book=>({...book,[id]:{kind}}));
+  setRoutes(book=>({...book,[id]:{kind}}));setDrawingRoute(false);
  };
+ const addWaypoint=(point:Point)=>setRoutes(book=>{
+  const prior=book[routeEditor].kind==='custom'?book[routeEditor].points??[]:[];
+  return {...book,[routeEditor]:{kind:'custom',points:[...prior,point].slice(-5)}};
+ });
  const buttonLabel=(id:ReceiverId)=>roster?.skill[id].last??RECEIVERS.find(r=>r.id===id)?.label??'TARGET';
  const jersey=(id:ReceiverId)=>roster?.skill[id].number??RECEIVERS.find(r=>r.id===id)?.number??'--';
  useEffect(()=>{
@@ -238,7 +244,7 @@ function GameExperience(){
      </div>
      <aside className="v5-call-detail">
       <div className="v5-detail-title"><div><small>THE CALL</small><h3>{selected.name}</h3></div><span>{selected.family}</span></div>
-      <div className="v5-diagram-row"><RoutePreview concept={customized} large/><div className="v5-read-detail"><strong><Zap size={15}/> QB'S NOTE</strong><p>{selected.tip}</p><small>{read.cue}</small></div></div>
+      <div className="v5-diagram-row"><RoutePreview concept={customized} large onWaypoint={editingRoutes&&drawingRoute?addWaypoint:undefined}/><div className="v5-read-detail"><strong><Zap size={15}/> QB'S NOTE</strong><p>{selected.tip}</p><small>{read.cue}</small></div></div>
       <div className="v5-coach-options">
        <label>FORMATION<select value={call.formation} onChange={e=>setCall(s=>({...s,formation:e.target.value as TacticalCall['formation']}))}>
         {FORMATIONS.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
@@ -249,8 +255,10 @@ function GameExperience(){
        <Crosshair size={16}/> {editingRoutes?'DONE EDITING ROUTES':'CUSTOMIZE RECEIVER ROUTES'} <ChevronRight size={15}/>
       </button>
       {editingRoutes&&<div className="v5-route-editor">
-       <div className="v5-target-tabs">{ROSTER.filter(id=>isEligible(id,call)).map(id=><button key={id} className={routeEditor===id?'active':''} onClick={()=>setRouteEditor(id)}>{buttonLabel(id)}</button>)}</div>
+       <div className="v5-target-tabs">{ROSTER.filter(id=>isEligible(id,call)).map(id=><button key={id} className={routeEditor===id?'active':''} onClick={()=>{setRouteEditor(id);setDrawingRoute(false);}}>{buttonLabel(id)}</button>)}</div>
        <div className="v5-route-options">{ROUTE_OPTIONS.map(o=><button key={o.kind} className={routes[routeEditor].kind===o.kind?'active':''} onClick={()=>editReceiverRoute(routeEditor,o.kind)}>{o.name}</button>)}</div>
+       <button className={'v5-draw-button '+(drawingRoute?'active':'')} onClick={()=>{if(!drawingRoute)setRoutes(book=>({...book,[routeEditor]:{kind:'custom',points:[]}}));setDrawingRoute(v=>!v);}}><Crosshair size={14}/>{drawingRoute?'FINISH DRAWING':'DRAW ROUTE ON DIAGRAM'}</button>
+       <small className="v5-draw-help">{drawingRoute?'Tap the large route diagram above to add up to five break points.':'Pick any preset or draw an original route.'}</small>
       </div>}
       <button className="v5-call-primary" onClick={breakHuddle}>CALL {selected.name}<ArrowRight size={21}/></button>
       {game.clockRunning&&<button className="v5-call-timeout" disabled={!game.timeouts} onClick={callTimeout}><TimerReset size={15}/> STOP THE CLOCK · {game.timeouts} TIMEOUT{game.timeouts===1?'':'S'}</button>}
