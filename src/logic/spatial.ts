@@ -21,10 +21,10 @@ export const ROUTE_OPTIONS: {kind:RouteKind;name:string;description:string}[]=[
 ];
 export const starterRoutes=(play:PlayId):RouteBook=>{
  const byPlay:Record<string,RouteKind[]> ={
- quick:['slant','slant','flat','drag','flat'],
- sideline:['out','out','corner','out','flat'],
+ quick:['slant','go','flat','drag','flat'],
+ sideline:['post','out','corner','flat','flat'],
  deep:['go','go','post','corner','wheel'],
- screen:['go','go','curl','drag','flat']
+ screen:['go','post','curl','drag','flat']
  };
  const choices=byPlay[play]??byPlay.quick;
  return {7:{kind:choices[0]},8:{kind:choices[1]},9:{kind:choices[2]},10:{kind:choices[3]},1:{kind:choices[4]}};
