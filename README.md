@@ -5,6 +5,23 @@ Inspired by classic electric tabletop football and the decision-making stakes of
 
 **Play:** https://joestella99.github.io/electric-Football/
 
+## V4 — NFL Situations & Team Identity
+
+**Opening experience:** start from a cinematic pregame menu rather than an embedded dashboard. Pick **NFL Moments** (historically grounded scenarios) or **Pick Your Teams** (select any two of the 32 NFL franchises). Once started, the game remains in a single viewport; use **Change Matchup** between plays to return to the selection screen.
+
+- **All 32 NFL franchises** appear with their official club names, familiar color palettes, conferences and divisions. The scoreboard and miniature player jerseys update for both selections.
+- **Historical challenge starts** for Super Bowl LVIII (Kansas City fourth-quarter 1:53 drive and overtime response), Super Bowl LII (New England at 2:21 trailing Philadelphia 38–33), and Super Bowl LVI (Rams' 6:13 finishing drive). Initial clock, score, and ball location derive from published game accounts. The subsequent gameplay is a new simulation, not a replay.
+- For historical challenges, featured players are named from the actual era: Patrick Mahomes/Travis Kelce/Rashee Rice; Tom Brady/Rob Gronkowski/Danny Amendola; Matthew Stafford/Cooper Kupp, etc. Their selectable roles are alternate-outcome approximations, not exact NFL personnel packages on every snap.
+- **Team-inspired original playbooks:** eight calls per team selected from conventional football concepts such as Mesh, Flood, Stick/Flat, Dagger, Four Verticals, Y Cross, Inside Zone and Outside Zone. Every play has its own five eligible receiver route assignments, formation and protection. Coaching notes summarize the defensive conflict the concept is designed to exploit. Style families include West Coast, Spread, Power, Vertical and Motion. These are **not the teams' proprietary official playbooks** and are not claimed to reflect a current coordinator's private system.
+- An eight-tile play-call dock with live route previews, updated QB read suggestions, a persistent play explanation and team-personalized receiver targets.
+- A simplified overtime *touchdown-only challenge* to make the Super Bowl LVIII sudden-win objective clear. This is a game mode, not a complete implementation of the NFL overtime rulebook.
+- Fixed the previously unreachable touchdown condition: catches entering the painted end zone can now finish a challenge.
+- Stadium turf, All-22 camera and graphics presets remain optimized for the single-screen gameplay.
+
+### Intellectual-property and sourcing notes
+
+This is an **unofficial, independent, noncommercial fan-made prototype**. No NFL affiliation, licenses, official team logos, uniform artworks, recordings, or player likenesses are included. NFL team names, historical scores and identified real players are used descriptively; source links are accessible from the historical challenge menu. Commercial/public release with official branding, logos or licensed data would require appropriate rights review. Do not scrape, redistribute or copy proprietary NFL playbooks or game footage into this repository.
+
 ## V3 — The Coach's Game
 
 A gameplay-first overhaul focused on coaching decisions, recognizable defensive football and responsive single-screen play. **This is still an independently authored arcade physics model, not an NFL-licensed simulator.**
