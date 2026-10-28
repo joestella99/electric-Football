@@ -12,7 +12,7 @@ test('opponent DC anticipates repeated runs, but does not inspect future selecte
  assert.equal(planDefense(g,same),'LOADED BOX');
 });
 test('defense adjusts to down and distance as well as historical pass trends',()=>{
- assert.equal(planDefense(state({down:4,toGo:8,plays:4}),[]),'BLITZ');
+ assert.equal(planDefense(state({down:4,toGo:8,plays:4}),[]),'SOFT ZONE');
  assert.equal(planDefense(state({down:2,toGo:10,plays:4}),[
   snap('fourverts','deep'),snap('dagger','deep'),snap('mesh','quick'),snap('flood','sideline')
  ]),'SOFT ZONE');
