@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowRight, CircleHelp, Clock3, Crosshair, Eye, Flag, Fullscreen, Goal, Keyboard, RotateCcw, Shield, Target, TimerReset, Zap, Gauge, Volume2, VolumeX, SlidersHorizontal, X, ScanEye, ClipboardList } from 'lucide-react';
 import Board3D, { type Live, type Motion, type ThrowRequest } from './components/Board3D';
 import Pregame from './components/Pregame';
-import { HISTORICAL_CHALLENGES,TEAM_BY_ID,STYLE_LABEL,practiceGame,teamPlaybook,type TeamConcept } from './logic/nfl';
+import { HISTORICAL_CHALLENGES,TEAM_BY_ID,STYLE_LABEL,practiceGame,teamPlaybook } from './logic/nfl';
 import { fieldSpot, formatClock, initialGame, kickDistance, simulate, useTimeout, type GameState, type PlayId, type Result } from './logic/drill';
 import { RECEIVERS, passPlay, pressureLimit, type Point, type ReceiverId } from './logic/throwing';
 import { ROUTE_OPTIONS, starterRoutes, routeAt, type RouteKind, type RouteBook } from './logic/spatial';
