@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { StadiumDiorama } from './Stadium';
 import { isEligible, type TacticalCall } from '../logic/tactics';
 import InstancedPlayers from './InstancedPlayers';
+import CoverageOverlay from './CoverageOverlay';
 import { actorPoint, closestDefender, newWorld, predictLead, routeVertices, stepWorld, throwBall as releaseSpatialBall, resultFromWorld, TARGETS, type RouteBook, type World } from '../logic/spatial';
 import type { GameState } from '../logic/drill';
 import type { Defense, PlayId, Result } from '../logic/drill';
@@ -327,6 +328,7 @@ function Scene(props:Props){
     <MemoCabinet/>
     <MemoField yard={displayYard} toGo={toGo}/>
     {!motion && <RouteLines yard={displayYard} play={play} call={call} routes={routes} selected={receiver} live={!!live}/>}
+    {world&&view==='coach'&&<CoverageOverlay world={world}/>}
     {world ? <>
       <SpatialClock world={world} request={throwRequest} game={game} elapsed={elapsed} selected={receiver} assistAim={assistAim} onLead={onLead}
         onTick={onTick} onCoverage={onCoverage} onSpatialResult={onSpatialResult}/>
