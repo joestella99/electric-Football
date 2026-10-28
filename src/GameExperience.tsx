@@ -5,6 +5,7 @@ import TacticalField2D from './components/TacticalField2D';
 import FieldErrorBoundary from './components/FieldErrorBoundary';
 import Pregame from './components/Pregame';
 import PlayCallScreen from './components/PlayCallScreen';
+import {planDefense,scoutDefense,gradeDecision,driveCoachScore,type DriveSnap,type CoachGrade} from './logic/strategy';
 import {TEAM_BY_ID,HISTORICAL_CHALLENGES,practiceGame,teamPlaybook,type TeamConcept} from './logic/nfl';
 import {historicalPersonnel} from './logic/nflRoster';
 import {fieldSpot,formatClock,kickDistance,simulate,useTimeout,type GameState,type Result} from './logic/drill';
@@ -56,6 +57,10 @@ function GameExperience(){
  const [rendererVersion,setRendererVersion]=useState(0);
  const [sound,setSound]=useState(true);
  const [history,setHistory]=useState<{id:number;label:string;gain:number;clock:number}[]>([]);
+ const [snaps,setSnaps]=useState<DriveSnap[]>([]);
+ const [grades,setGrades]=useState<CoachGrade[]>([]);
+ const [lastCoachGrade,setLastCoachGrade]=useState<CoachGrade|null>(null);
+ const snapDecision=useRef<{grade:CoachGrade;concept:TeamConcept;prior:GameState}|null>(null);
  const [driveInfo,setDriveInfo]=useState(false);
  const [showHelp,setShowHelp]=useState(false);
  const serial=useRef(0);
@@ -67,6 +72,8 @@ function GameExperience(){
  const read=presnapRead(game.defense);
  const coverageId=selectCoverage(game.defense,game.plays);
  const coverageInfo=COVERAGES[coverageId];
+ const scout=scoutDefense(game,snaps);
+ const coachRating=driveCoachScore(grades);
  const running=live&&!passPlay(live.play);
  const canThrow=stage==='live'&&!running&&!throwRequest;
  const remaining=clamp(game.seconds-(stage==='live'?Math.ceil(elapsed):0),0,9999);
@@ -80,7 +87,7 @@ function GameExperience(){
   setGame({...fresh});setChosenId(c.id);setCall({...initialCustom(c),concept:c.id});setRoutes(c.routes);
   setReceiver(7);setRpoChoice('pull');setTempo('hurry');
   setStage('calling');setFilter(c.family);setLive(null);setThrowRequest(null);
-  setResult(null);setHistory([]);setElapsed(0);setCoverage({});
+  setResult(null);setHistory([]);setSnaps([]);setGrades([]);setLastCoachGrade(null);snapDecision.current=null;setElapsed(0);setCoverage({});
   setView('sideline');setLobbyOpen(false);setStarted(true);setDriveInfo(false);setFieldLoaded(false);
   serial.current++;
  };
@@ -104,6 +111,8 @@ function GameExperience(){
   if((stage!=='ready'&&stage!=='calling')||game.status!=='playing')return;
   const spent=game.clockRunning?(tempo==='drain'?12:tempo==='huddle'?5:1):0;
   if(game.seconds<=spent){setGame(g=>({...g,seconds:0,status:'lost',message:'THE CLOCK RAN OUT BEFORE THE SNAP.'}));setStage('finished');return;}
+  const snapState={...game,seconds:game.seconds-spent};
+  snapDecision.current={grade:gradeDecision(snapState,selected,call,teamBook,snaps),concept:selected,prior:snapState};
   if(spent)setGame(g=>({...g,seconds:g.seconds-spent}));
   playCue('snap',sound);
   setCoverage({});setElapsed(0);setThrowRequest(null);setReceiver(7);
@@ -112,17 +121,27 @@ function GameExperience(){
  };
  const complete=useCallback((r:Result)=>{
   playCue(r.description.startsWith('TOUCHDOWN')?'touchdown':r.turnover?'interception':r.play==='inside'||r.play==='outside'?'run':r.description.includes('SACK')?'sack':r.complete?'catch':'incomplete',sound);
-  setGame(r.state);setLive(null);setThrowRequest(null);setResult(r);setElapsed(0);setCoverage({});
+  const decision=snapDecision.current;
+  const entry:DriveSnap={family:decision?.concept.family??'PASS',concept:decision?.concept.id??'unknown',
+    play:r.play,yards:r.yards,clock:r.state.seconds,down:decision?.prior.down??1,toGo:decision?.prior.toGo??10,
+    defense:decision?.prior.defense??r.state.defense,turnover:r.turnover};
+  const updated=[...snaps,entry];
+  const defensiveNext=r.state.status==='playing'?planDefense(r.state,updated):r.state.defense;
+  setGame({...r.state,defense:defensiveNext});
+  setSnaps(updated);
+  if(decision){setGrades(g=>[...g,decision.grade]);setLastCoachGrade(decision.grade);}
+  snapDecision.current=null;
+  setLive(null);setThrowRequest(null);setResult(r);setElapsed(0);setCoverage({});
   setHistory(h=>[{id:++serial.current,label:r.description,gain:r.yards,clock:r.state.seconds},...h].slice(0,12));
   setStage(r.state.status==='playing'?'result':'finished');
- },[sound]);
+ },[sound,snaps]);
  const passTo=useCallback((id:ReceiverId)=>{
   if(!canThrow||!isEligible(id,call))return;
   setReceiver(id);
   setThrowRequest({id:++serial.current,receiver:id,point:[0,game.yard+6] as Point,assisted:true,style:passStyle});
   playCue('throw',sound);
  },[canThrow,call,game.yard,passStyle,sound]);
- const nextPlay=()=>{if(stage==='result'){setStage('calling');setResult(null);setFilter(selected.family);}};
+ const nextPlay=()=>{if(stage==='result'){setStage('calling');setResult(null);setLastCoachGrade(null);setFilter(selected.family);}};
  const special=(id:'spike'|'fieldgoal')=>{
   if(stage!=='ready'&&stage!=='calling')return;
   const r=simulate(game,id,'hurry',Math.random,call);
@@ -202,7 +221,7 @@ function GameExperience(){
  },[]);
  return <div className="v5-shell" style={{'--team-color':teams[0].primary,'--opp-color':teams[1].primary} as React.CSSProperties}>
   <header className="v5-header">
-   <div className="v5-brand"><span className="v5-bolt">ϟ</span><div><strong>ELECTRIC</strong><b>FOOTBALL</b></div><small>COACH'S CUT / V5</small></div>
+   <div className="v5-brand"><span className="v5-bolt">ϟ</span><div><strong>ELECTRIC</strong><b>FOOTBALL</b></div><small>STRATEGY / V6</small></div>
    <div className="v5-score">
     <div className="v5-score-team"><span style={{background:teams[0].primary}}>{teams[0].abbr}</span><b>{game.ours}</b></div>
     <div className="v5-score-clock"><small>{scenarioId==='practice'?'4TH QUARTER':challenge?.quarter+' · '+challenge?.eyebrow}</small><strong className={remaining<=30?'urgent':''}>{formatClock(remaining)}</strong></div>
@@ -260,7 +279,7 @@ function GameExperience(){
       routes={routes} onRoute={editReceiverRoute} onWaypoint={addWaypoint}
       name={buttonLabel} jersey={jersey} clock={formatClock(game.seconds)} clockRunning={game.clockRunning}
       downs={game.down+' & '+game.toGo} yards={fieldSpot(game.yard)}
-      timeouts={game.timeouts} onTimeout={callTimeout} onSnap={snap}
+      timeouts={game.timeouts} onTimeout={callTimeout} onSnap={snap} scout={scout} scoreLead={game.ours-game.theirs} timeoutsLeft={game.timeouts}
       tempo={tempo} onTempo={setTempo} rpoChoice={rpoChoice} onRpoChoice={setRpoChoice}/>}
    {stage==='ready'&&!lobbyOpen&&<div className="v5-readyside"><span className="v5-eyebrow"><Shield size={15}/> PRE-SNAP · {teams[0].abbr} OFFENSE</span><h2>{selected.name}</h2><p>{selected.tip}</p><div><span>{FORMATIONS.find(f=>f.id===call.formation)?.name}</span><span>{PROTECTIONS.find(f=>f.id===call.protection)?.name}</span></div></div>}
    {stage==='live'&&!lobbyOpen&&<div className="v5-live-head">
@@ -269,11 +288,24 @@ function GameExperience(){
      <small>{running?'Watch the blocking and pursuit':throwRequest?'Follow the ball to the catch point':coverageInfo.weakness}</small></div>
     {!running&&<div className="v5-pocket"><small>POCKET</small><strong>{playSeconds.toFixed(1)}<span>s</span></strong><div><i style={{width:(100*playSeconds/pocket)+'%'}}/></div></div>}
    </div>}
-   {stage==='result'&&result&&<div className="v5-result-card"><span>{result.complete?'PLAY COMPLETE':'NEXT DOWN'}</span><h2>{result.description}</h2><p>{result.yards>0?'+':''}{result.yards} YDS · {game.down} & {game.toGo} · {formatClock(game.seconds)} LEFT</p><button onClick={nextPlay}>CALL NEXT PLAY <ArrowRight size={17}/></button></div>}
+   {stage==='result'&&result&&<div className="v5-result-card v6-film-review">
+      <span>FILM ROOM · {result.complete?'PLAY COMPLETE':'NEXT DOWN'}</span>
+      <h2>{result.description}</h2>
+      <p>{result.yards>0?'+':''}{result.yards} YDS · {game.down} & {game.toGo} · {formatClock(game.seconds)} LEFT</p>
+      {lastCoachGrade&&<div className="v6-coach-grade">
+        <div className={'v6-grade-letter grade-'+lastCoachGrade.letter}>{lastCoachGrade.letter}</div>
+        <div><b>{lastCoachGrade.points}/100 · CALL FIT</b><span>{lastCoachGrade.reason}</span>
+        <small>{lastCoachGrade.delta<=6?'Well-matched to the situation.':'Alternative to consider: '+lastCoachGrade.bestCall}</small></div>
+      </div>}
+      <div className="v6-next-read"><Shield size={14}/> OPPONENT ADJUSTMENT: {scout.shell}</div>
+      <button onClick={nextPlay}>CALL NEXT PLAY <ArrowRight size={17}/></button>
+      <small className="v6-method-note">Call fit is a coaching heuristic graded before the snap, not an NFL win probability.</small>
+    </div>}
    {stage==='finished'&&!lobbyOpen&&<div className="v5-finish">
     <span className="v5-eyebrow"><Trophy size={16}/> THE FINAL WHISTLE</span>
     <h1>{game.status==='won'?'DRIVE COMPLETE.':game.status==='tied'?'GAME TIED.':'DRIVE OVER.'}</h1>
     <p>{game.message}</p><strong>{teams[0].abbr} {game.ours} — {teams[1].abbr} {game.theirs}</strong>
+    <div className="v6-final-grade"><span>COACHING REPORT</span><b>{coachRating}/100</b><small>{grades.length} graded decisions · situation-adjusted calls, independent of results</small></div>
     <div><button onClick={replay}><RotateCcw size={18}/> RETRY DRIVE</button><button onClick={()=>setLobbyOpen(true)}>NEW MATCHUP <ArrowRight size={18}/></button></div>
    </div>}
    {!lobbyOpen&&stage!=='calling'&&stage!=='finished'&&<div className="v5-camera-label">{view==='coach'?'ALL-22 · COACH CAM':'FIELD LEVEL · QB CAM'} <span>V TO SWITCH</span></div>}
