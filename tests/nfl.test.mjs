@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {NFL_TEAMS,TEAM_BY_ID,STYLE_LABEL,HISTORICAL_CHALLENGES,teamPlaybook,practiceGame} from '../src/logic/nfl.ts';
-import {routeVertices,newWorld,routeAt} from '../src/logic/spatial.ts';
+import {routeVertices,newWorld,routeAt,resultFromWorld} from '../src/logic/spatial.ts';
+import {historicalPersonnel} from '../src/logic/nflRoster.ts';
 
 test('all 32 real NFL clubs appear once with usable colors and divisions',()=>{
  assert.equal(NFL_TEAMS.length,32);
@@ -54,4 +55,27 @@ test('practice generator accepts all 32 teams and prevents self-matchups',()=>{
  assert.equal(practiceGame('PHI','DAL').seconds,106);
  assert.equal(practiceGame('KC','SF').ours,20);
  assert.throws(()=>practiceGame('PHI','PHI'),/distinct clubs/);
+});
+
+test('historic scenarios surface era-appropriate player roles and jersey numbers',()=>{
+ const kc=historicalPersonnel('lviii-final');
+ assert.equal(kc.qb.last,'MAHOMES');
+ assert.equal(kc.skill[9].last,'KELCE');
+ assert.equal(kc.skill[1].number,'10');
+ const ne=historicalPersonnel('lii-patriots');
+ assert.equal(ne.qb.last,'BRADY');
+ assert.equal(ne.skill[9].last,'GRONKOWSKI');
+ const la=historicalPersonnel('lvi-rams');
+ assert.equal(la.qb.last,'STAFFORD');
+ assert.equal(la.skill[7].last,'KUPP');
+ assert.equal(historicalPersonnel('practice'),null);
+});
+test('catching inside the actual painted end zone can finally win a scenario',()=>{
+ const game=practiceGame('PHI','DAL');
+ game.yard=90;game.ours=20;game.theirs=23;game.toGo=10;
+ const world=newWorld(90,'SOFT ZONE','quick');
+ const result=resultFromWorld(game,world,{kind:'catch',receiver:7,yards:6,outOfBounds:false,elapsed:3,description:'TOUCHDOWN TEST'});
+ assert.equal(result.state.status,'won');
+ assert.equal(result.state.yard,100);
+ assert.equal(result.state.ours,27);
 });
