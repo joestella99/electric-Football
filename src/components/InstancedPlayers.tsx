@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import type { World, Actor } from '../logic/spatial';
 import type { Motion } from './Board3D';
 
-type Props={world:World;active:boolean;motion:Motion|null;progress:React.RefObject<number>;selected:number};
+type Props={world:World;active:boolean;motion:Motion|null;progress:React.RefObject<number>;selected:number;offenseColor:string;opponentColor:string};
 const BOX=new THREE.BoxGeometry(1,1,1);
 const HELMET=new THREE.IcosahedronGeometry(1,1);
 const SHADOW=new THREE.PlaneGeometry(1,1);
