@@ -249,3 +249,9 @@
 .v5-clock-warning small{font:700 9px 'DM Mono',monospace;color:#adbcae}
 .v5-difficulty{font:700 9px 'DM Mono',monospace;color:#87a693}
 @media(max-width:950px){.v5-call-situation{width:0;display:none}}
+
+/* Original route sketches stay in the coach board, not on a crowded live field. */
+.route-preview.route-drawing{cursor:crosshair;border:2px dashed #f4d082;box-shadow:0 0 0 2px #eaca8640;touch-action:manipulation}
+.v5-draw-button{display:flex;justify-content:center;align-items:center;gap:8px;background:#345845;color:#fff0cc;border:1px dashed #f4ce82;padding:8px;font:900 12px 'Barlow Condensed',sans-serif;letter-spacing:.5px}
+.v5-draw-button.active{background:#b45638;border-style:solid}
+.v5-draw-help{color:#a8c5ad;font:500 10px/1.4 Outfit,sans-serif}
