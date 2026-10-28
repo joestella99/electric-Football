@@ -1,8 +1,8 @@
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
-import {ArrowLeft,ArrowRight,AudioLines,BookOpen,Check,ChevronRight,Clock3,Crosshair,Eye,Flag,Fullscreen,Gauge,Goal,Headphones,Layers,PauseCircle,Play,RotateCcw,Shield,TimerReset,Trophy,Volume2,VolumeX,Zap} from 'lucide-react';
+import {ArrowRight,AudioLines,BookOpen,Check,ChevronRight,Clock3,Crosshair,Eye,Flag,Fullscreen,Gauge,Goal,Headphones,Layers,Play,RotateCcw,Shield,TimerReset,Trophy,Volume2,VolumeX,Zap} from 'lucide-react';
 import Board3D,{type Live,type ThrowRequest} from './components/Board3D';
 import Pregame from './components/Pregame';
-import {NFL_TEAMS,TEAM_BY_ID,HISTORICAL_CHALLENGES,STYLE_LABEL,practiceGame,teamPlaybook,type TeamConcept} from './logic/nfl';
+import {TEAM_BY_ID,HISTORICAL_CHALLENGES,STYLE_LABEL,practiceGame,teamPlaybook,type TeamConcept} from './logic/nfl';
 import {historicalPersonnel} from './logic/nflRoster';
 import {fieldSpot,formatClock,kickDistance,simulate,useTimeout,type GameState,type Result} from './logic/drill';
 import {RECEIVERS,passPlay,pressureLimit,type ReceiverId,type Point} from './logic/throwing';
@@ -83,7 +83,6 @@ function GameExperience(){
  const pocket=pressureLimit(game.defense,call.protection);
  const playSeconds=clamp(pocket-elapsed,0,pocket);
  const challenge=HISTORICAL_CHALLENGES.find(s=>s.id===scenarioId);
- const bestCategory=categorise(selected);
  const shown=filter==='ALL'?teamBook:teamBook.filter(c=>categorise(c)===filter);
  const setup=(fresh:GameState,offense:string,defense:string,id:string)=>{
   const c=getFirst(offense);
@@ -138,7 +137,6 @@ function GameExperience(){
  };
  const buttonLabel=(id:ReceiverId)=>roster?.skill[id].last??RECEIVERS.find(r=>r.id===id)?.label??'TARGET';
  const jersey=(id:ReceiverId)=>roster?.skill[id].number??RECEIVERS.find(r=>r.id===id)?.number??'--';
- const resetClock=game.seconds;
  useEffect(()=>{
   if(!game.clockRunning||lobbyOpen||showHelp||stage==='live'||stage==='finished')return;
   const interval=window.setInterval(()=>setGame(g=>{
