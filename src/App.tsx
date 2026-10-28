@@ -236,12 +236,12 @@ function App() {
       </div>
     </header>
     <div className="arena">
-      <Board3D offenseColor={ownTeam.primary} opponentColor={opposingTeam.primary} personnel={personnel} yard={game.yard} toGo={game.toGo} defense={game.defense} play={play} view={view} call={call} game={game}
+      {!lobbyOpen&&<Board3D offenseColor={ownTeam.primary} opponentColor={opposingTeam.primary} personnel={personnel} yard={game.yard} toGo={game.toGo} defense={game.defense} play={play} view={view} call={call} game={game}
         live={live} motion={motion} aim={aim} receiver={receiver} routes={routes} drawTarget={drawing} throwRequest={throwRequest}
         onSelect={choose} onAim={point=>{if(!throwing){setAutoLead(false);setAim(point);}}}
         onDrawPoint={drawPoint} onThrow={throwNow} onAutoThrow={id=>throwNow(aim,id,true)} onLead={setAim} assistAim={autoLead}
         quality={quality} onFps={setFps} onTick={onTick} onCoverage={setCoverage}
-        onSpatialResult={completePlay} onDone={()=>{if(motion)completePlay(motion.result);}}/>
+        onSpatialResult={completePlay} onDone={()=>{if(motion)completePlay(motion.result);}}/>}
       <div className="screen-grain" aria-hidden="true"/>
       <div className="arena-header">
         <div className="down-flag"><b>{game.down}<sup>{game.down===1?'ST':game.down===2?'ND':game.down===3?'RD':'TH'}</sup> &amp; {game.toGo}</b><span>{fieldSpot(game.yard)}</span></div>
