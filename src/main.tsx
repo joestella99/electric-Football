@@ -1,7 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App';
+import App from './GameExperience';
 import './styles.css';
+import './experience.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
