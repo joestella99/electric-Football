@@ -18,7 +18,7 @@ const palette={
   stripe:new THREE.MeshStandardMaterial({color:'#e5d6b6',roughness:.52}),
   shadow:new THREE.MeshBasicMaterial({color:'#091612',transparent:true,opacity:.27,depthWrite:false})
 };
-const HOME='#f4d48c',AWAY='#cd6047',BASE_HOME='#b68b45',BASE_AWAY='#973d32';
+const BASE_HOME='#b68b45',BASE_AWAY='#973d32';
 type Piece='base'|'torso'|'shoulder'|'helmet'|'armLeft'|'armRight'|'legLeft'|'legRight'|'mask'|'stripe'|'shadow';
 const dummy=new THREE.Object3D();
 const tmpColor=new THREE.Color();
@@ -45,14 +45,14 @@ export default function InstancedPlayers({world,active,motion,progress,selected,
         const color=key==='base'?(home?BASE_HOME:BASE_AWAY):
           key==='shadow'?'#111111':
           key==='stripe'||key==='mask'?'#ffffff':
-          key==='helmet'?(home?'#ecc16c':'#c04d3d'):
-          home?HOME:AWAY;
+          key==='helmet'?(home?offenseColor:opponentColor):
+          home?offenseColor:opponentColor;
         mesh.setColorAt(i,tmpColor.set(color));
       }
       if(mesh.instanceColor)mesh.instanceColor.needsUpdate=true;
       mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     }
-  },[world]);
+  },[world,offenseColor,opponentColor]);
   useFrame(({clock})=>{
     const cached=lastDrawn.current;
     if(!active&&!motion&&cached.world===world&&cached.selected===selected)return;
