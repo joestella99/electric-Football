@@ -33,7 +33,7 @@ function shape(ref:THREE.InstancedMesh|undefined,index:number,x:number,z:number,
   ref.setMatrixAt(index,dummy.matrix);
 }
 /** Eleven GPU-instanced parts render all 22 miniature figures (instead of hundreds of individual meshes). */
-export default function InstancedPlayers({world,active,motion,progress,selected}:Props){
+export default function InstancedPlayers({world,active,motion,progress,selected,offenseColor,opponentColor}:Props){
   const meshes=useRef<Partial<Record<Piece,THREE.InstancedMesh>>>({});
   const ring=useRef<THREE.Mesh>(null);
   const lastDrawn=useRef<{world:World|null;selected:number}>({world:null,selected:-1});
