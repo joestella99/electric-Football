@@ -1,6 +1,8 @@
 import {useCallback,useEffect,useMemo,useRef,useState} from 'react';
 import {ArrowRight,AudioLines,BookOpen,Check,ChevronRight,Clock3,Crosshair,Eye,Flag,Fullscreen,Gauge,Goal,Headphones,Layers,Play,RotateCcw,Shield,TimerReset,Trophy,Volume2,VolumeX,Zap} from 'lucide-react';
 import Board3D,{type Live,type ThrowRequest} from './components/Board3D';
+import TacticalField2D from './components/TacticalField2D';
+import FieldErrorBoundary from './components/FieldErrorBoundary';
 import Pregame from './components/Pregame';
 import {TEAM_BY_ID,HISTORICAL_CHALLENGES,STYLE_LABEL,practiceGame,teamPlaybook,type TeamConcept} from './logic/nfl';
 import {historicalPersonnel} from './logic/nflRoster';
@@ -62,6 +64,14 @@ function GameExperience(){
  const [view,setView]=useState<View>('sideline');
  const [quality,setQuality]=useState<'performance'|'balanced'|'high'>(()=>typeof window!=='undefined'&&window.matchMedia('(max-width:760px)').matches?'performance':'balanced');
  const [fps,setFps]=useState<number|null>(null);
+ const [fieldMode,setFieldMode]=useState<'3d'|'2d'>(()=>{
+  if(typeof document==='undefined')return '2d';
+  try{const canvas=document.createElement('canvas');return canvas.getContext('webgl2')||canvas.getContext('webgl')?'3d':'2d';}
+  catch{return '2d';}
+ });
+ const [fieldLoaded,setFieldLoaded]=useState(false);
+ const [fieldError,setFieldError]=useState<string|null>(null);
+ const [rendererVersion,setRendererVersion]=useState(0);
  const [sound,setSound]=useState(true);
  const [routeEditor,setRouteEditor]=useState<ReceiverId>(7);
  const [editingRoutes,setEditingRoutes]=useState(false);
@@ -93,7 +103,7 @@ function GameExperience(){
   setReceiver(7);setRouteEditor(7);setEditingRoutes(false);setDrawingRoute(false);
   setStage('calling');setFilter('ALL');setLive(null);setThrowRequest(null);
   setResult(null);setHistory([]);setElapsed(0);setCoverage({});
-  setView('sideline');setLobbyOpen(false);setStarted(true);setDriveInfo(false);
+  setView('sideline');setLobbyOpen(false);setStarted(true);setDriveInfo(false);setFieldLoaded(false);
   serial.current++;
  };
  const startChallenge=(id:string)=>{
@@ -134,6 +144,12 @@ function GameExperience(){
   complete(r);
  };
  const callTimeout=()=>{if(game.clockRunning&&game.timeouts>0){setGame(s=>useTimeout(s));playCue('snap',sound);}};
+ const changeFieldMode=()=>{
+  if(stage==='live')return;
+  if(fieldMode==='3d'){setFieldMode('2d');setFieldLoaded(false);}
+  else{setFieldMode('3d');setRendererVersion(v=>v+1);setFieldLoaded(false);setFieldError(null);}
+ };
+ const fieldFailure=(message:string)=>{setFieldMode('2d');setFieldLoaded(false);setFieldError(message);};
  const editReceiverRoute=(id:ReceiverId,kind:RouteBook[ReceiverId]['kind'])=>{
   setRoutes(book=>({...book,[id]:{kind}}));setDrawingRoute(false);
  };
@@ -202,6 +218,7 @@ function GameExperience(){
    </div>
    <div className="v5-head-actions">
     <button className="v5-icon" onClick={()=>setView(v=>v==='coach'?'sideline':'coach')} aria-label="Toggle tactical camera" title="Camera V">{view==='coach'?<Layers size={18}/>:<Eye size={18}/>}</button>
+    <button className="v5-icon v5-view-toggle" onClick={changeFieldMode} disabled={stage==='live'} title={fieldMode==='3d'?'Switch to reliable 2D tactical field':'Try 3D field again'} aria-label={'Field view: '+fieldMode}><span>{fieldMode.toUpperCase()}</span></button>
     <button className="v5-icon" onClick={()=>setQuality(v=>v==='performance'?'balanced':v==='balanced'?'high':'performance')} title={'Graphics: '+quality+' · '+(fps??'—')+' FPS'} aria-label="Cycle graphics quality"><Gauge size={18}/></button>
     <button className="v5-icon" onClick={()=>setSound(s=>!s)} aria-label={sound?'Mute sounds':'Enable sounds'} title="Toggle sound">{sound?<Volume2 size={18}/>:<VolumeX size={18}/>}</button>
     <button className="v5-icon v5-desktop-only" onClick={()=>document.fullscreenElement?void document.exitFullscreen():void document.documentElement.requestFullscreen?.()} aria-label="Full screen"><Fullscreen size={18}/></button>
@@ -209,12 +226,30 @@ function GameExperience(){
    </div>
   </header>
   <main className="v5-stage">
-   {!lobbyOpen&&stage!=='calling'&&<Board3D yard={game.yard} toGo={game.toGo} defense={game.defense} play={selected.play}
-    view={view} call={call} game={game} routes={routes} drawTarget={null} throwRequest={throwRequest}
-    onDrawPoint={()=>{}} onSpatialResult={complete} onAutoThrow={passTo} onLead={()=>{}} assistAim={false}
-    buttonPassing quality={quality} onFps={setFps} offenseColor={teams[0].primary} opponentColor={teams[1].primary} personnel={roster}
-    onCoverage={setCoverage} live={live} motion={null} aim={[0,game.yard+14]} receiver={receiver}
-    onAim={()=>{}} onThrow={()=>{}} onSelect={setReceiver} onTick={setElapsed} onDone={()=>{}}/>}
+   {!lobbyOpen&&(stage==='calling'||fieldMode==='2d'?
+    <TacticalField2D game={game} play={selected.play} call={call} routes={routes} live={stage==='calling'?null:live}
+     request={throwRequest} onTick={setElapsed} onCoverage={setCoverage} onResult={complete}
+     offenseColor={teams[0].primary} opponentColor={teams[1].primary} personnel={roster} preview={stage==='calling'}/>
+    :<FieldErrorBoundary key={rendererVersion} onFailure={fieldFailure}
+      fallback={<TacticalField2D game={game} play={selected.play} call={call} routes={routes} live={live}
+        request={throwRequest} onTick={setElapsed} onCoverage={setCoverage} onResult={complete}
+        offenseColor={teams[0].primary} opponentColor={teams[1].primary} personnel={roster}/>}>
+      <Board3D yard={game.yard} toGo={game.toGo} defense={game.defense} play={selected.play}
+       view={view} call={call} game={game} routes={routes} drawTarget={null} throwRequest={throwRequest}
+       onDrawPoint={()=>{}} onSpatialResult={complete} onAutoThrow={passTo} onLead={()=>{}} assistAim={false}
+       buttonPassing quality={quality} onFps={setFps} onReady={()=>setFieldLoaded(true)}
+       offenseColor={teams[0].primary} opponentColor={teams[1].primary} personnel={roster}
+       onCoverage={setCoverage} live={live} motion={null} aim={[0,game.yard+14]} receiver={receiver}
+       onAim={()=>{}} onThrow={()=>{}} onSelect={setReceiver} onTick={setElapsed} onDone={()=>{}}/>
+     </FieldErrorBoundary>)}
+   {!lobbyOpen&&stage!=='calling'&&fieldMode==='3d'&&!fieldLoaded&&
+     <div className="field-loading-cover" role="status"><strong>PREPARING THE FIELD</strong>
+       <span>Initializing miniature players and stadium lighting…</span>
+       <button onClick={()=>setFieldMode('2d')}>OPEN PLAYABLE 2D FIELD</button>
+     </div>}
+   {!lobbyOpen&&fieldMode==='2d'&&fieldError&&<div className="field-recovery-note">
+     3D rendering failed on this device. The tactical field is playable in 2D.
+   </div>}
    {stage==='calling'&&!lobbyOpen&&<div className="v5-call-situation">
     <span className="v5-eyebrow">SITUATION ROOM</span>
     <h3>{game.down}<sup>{game.down===1?'ST':game.down===2?'ND':game.down===3?'RD':'TH'}</sup> & {game.toGo}</h3>
