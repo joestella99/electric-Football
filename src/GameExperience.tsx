@@ -160,6 +160,16 @@ function GameExperience(){
  const buttonLabel=(id:ReceiverId)=>roster?.skill[id].last??RECEIVERS.find(r=>r.id===id)?.label??'TARGET';
  const jersey=(id:ReceiverId)=>roster?.skill[id].number??RECEIVERS.find(r=>r.id===id)?.number??'--';
  useEffect(()=>{
+  if(lobbyOpen||stage==='calling'||fieldMode!=='3d'||fieldLoaded)return;
+  // A GPU can silently refuse to create a context without throwing to React.
+  // Never strand a game behind an endless loading indicator.
+  const handle=window.setTimeout(()=>{
+   setFieldError('3D renderer did not finish initializing');
+   setFieldMode('2d');
+  },6500);
+  return ()=>window.clearTimeout(handle);
+ },[lobbyOpen,stage,fieldMode,fieldLoaded,rendererVersion]);
+ useEffect(()=>{
   if(!game.clockRunning||lobbyOpen||showHelp||stage==='live'||stage==='finished')return;
   const interval=window.setInterval(()=>setGame(g=>{
    if(!g.clockRunning||g.status!=='playing')return g;
