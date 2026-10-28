@@ -9,7 +9,7 @@ import {planDefense,scoutDefense,gradeDecision,driveCoachScore,type DriveSnap,ty
 import {TEAM_BY_ID,HISTORICAL_CHALLENGES,practiceGame,teamPlaybook,type TeamConcept} from './logic/nfl';
 import {historicalPersonnel} from './logic/nflRoster';
 import {fieldSpot,formatClock,kickDistance,simulate,useTimeout,type GameState,type Result} from './logic/drill';
-import {RECEIVERS,passPlay,pressureLimit,type ReceiverId,type Point} from './logic/throwing';
+import {RECEIVERS,PASS_BUTTON_IDS,passPlay,pressureLimit,type ReceiverId,type Point} from './logic/throwing';
 import {type RouteBook,type PassStyle,type RouteKind} from './logic/spatial';
 import {FORMATIONS,PROTECTIONS,isEligible,presnapRead,type TacticalCall} from './logic/tactics';
 import {COVERAGES,selectCoverage} from './logic/coverage';
@@ -18,7 +18,7 @@ type Stage='calling'|'ready'|'live'|'result'|'finished';
 type Category='RUN'|'PASS'|'RPO'|'TRICK';
 type Tempo='hurry'|'huddle'|'drain';
 type View='sideline'|'coach';
-const ROSTER=RECEIVERS.map(r=>r.id);
+const ROSTER=PASS_BUTTON_IDS;
 const clamp=(n:number,a:number,b:number)=>Math.min(b,Math.max(a,n));
 function newBook(teamId:string){return teamPlaybook(teamId);}
 function getFirst(teamId:string){return newBook(teamId)[0];}
@@ -27,6 +27,7 @@ function GameExperience(){
  const [lobbyOpen,setLobbyOpen]=useState(true);
  const [started,setStarted]=useState(false);
  const [stage,setStage]=useState<Stage>('calling');
+ const [showFieldReads,setShowFieldReads]=useState(true);
  const [scenarioId,setScenarioId]=useState('lviii-final');
  const [teamId,setTeamId]=useState('KC');
  const [opponentId,setOpponentId]=useState('SF');
@@ -86,7 +87,7 @@ function GameExperience(){
   setTeamId(offense);setOpponentId(defense);setScenarioId(id);
   setGame({...fresh});setChosenId(c.id);setCall({...initialCustom(c),concept:c.id});setRoutes(c.routes);
   setReceiver(7);setRpoChoice('pull');setTempo('hurry');
-  setStage('calling');setFilter(c.family);setLive(null);setThrowRequest(null);
+  setStage('calling');setShowFieldReads(true);setFilter(c.family);setLive(null);setThrowRequest(null);
   setResult(null);setHistory([]);setSnaps([]);setGrades([]);setLastCoachGrade(null);snapDecision.current=null;setElapsed(0);setCoverage({});
   setView('sideline');setLobbyOpen(false);setStarted(true);setDriveInfo(false);setFieldLoaded(false);
   serial.current++;
@@ -102,6 +103,11 @@ function GameExperience(){
   setChosenId(concept.id);setCall({...initialCustom(concept),concept:concept.id,playAction:concept.id==='pashot'||concept.id==='fleaflicker'});setRoutes(concept.routes);
   setRpoChoice('pull');setReceiver(7);
  };
+ const setPlayAtLine=()=>{
+  if(stage!=='calling'||game.status!=='playing')return;
+  setShowFieldReads(true);
+  setStage('ready');
+ };
  const audibleTo=(concept:TeamConcept)=>{
   if(stage!=='ready'||game.status!=='playing')return;
   if(game.clockRunning&&game.seconds<=2)return;
@@ -116,7 +122,8 @@ function GameExperience(){
   if(next)selectPlay(next);
  };
  const snap=()=>{
-  if((stage!=='ready'&&stage!=='calling')||game.status!=='playing')return;
+  // The ball can only be snapped once the offense has been set on the field.
+  if(stage!=='ready'||game.status!=='playing')return;
   const spent=game.clockRunning?(tempo==='drain'?12:tempo==='huddle'?5:1):0;
   if(game.seconds<=spent){setGame(g=>({...g,seconds:0,status:'lost',message:'THE CLOCK RAN OUT BEFORE THE SNAP.'}));setStage('finished');return;}
   const snapState={...game,seconds:game.seconds-spent};
@@ -180,15 +187,9 @@ function GameExperience(){
   },6500);
   return ()=>window.clearTimeout(handle);
  },[lobbyOpen,stage,fieldMode,fieldLoaded,rendererVersion]);
- useEffect(()=>{
-  if(!game.clockRunning||lobbyOpen||showHelp||stage==='live'||stage==='finished')return;
-  const interval=window.setInterval(()=>setGame(g=>{
-   if(!g.clockRunning||g.status!=='playing')return g;
-   const seconds=Math.max(0,g.seconds-1);
-   return {...g,seconds,status:seconds?'playing':'lost',message:seconds?g.message:'TIME EXPIRES.'};
-  }),1000);
-  return ()=>window.clearInterval(interval);
- },[game.clockRunning,lobbyOpen,showHelp,stage]);
+ // Tactical planning is untimed. The running game clock is charged by selected
+ // tempo when the user explicitly snaps, and by real play duration afterward.
+ // That lets players inspect formations and make audibles at their own pace.
  useEffect(()=>{
   if(game.status!=='playing'&&stage!=='finished'&&!lobbyOpen){setStage('finished');}
  },[game.status,lobbyOpen,stage]);
@@ -199,7 +200,6 @@ function GameExperience(){
    if(lobbyOpen)return;
    if(e.code==='Escape'){
     if(showHelp)setShowHelp(false);
-    else if(stage==='calling')setStage('ready');
     else if(stage==='ready')setStage('calling');
     return;
    }
@@ -213,10 +213,11 @@ function GameExperience(){
    }else if(stage==='ready'){
     if(e.code==='Space'){e.preventDefault();if(!e.repeat)snap();}
     if(e.code==='KeyP')setStage('calling');
+    if(e.code==='KeyR')setShowFieldReads(v=>!v);
    }else if(stage==='calling'){
     const n=e.code.startsWith('Digit')?Number(e.code.slice(-1)):0;
     if(n>=1&&n<=9&&teamBook.filter(x=>x.family===filter)[n-1])selectPlay(teamBook.filter(x=>x.family===filter)[n-1]);
-    if(e.code==='Enter'||e.code==='Space'){e.preventDefault();snap();}
+    if(e.code==='Enter'||e.code==='Space'){e.preventDefault();if(!e.repeat)setPlayAtLine();}
    }else if(stage==='result'&&(e.code==='Space'||e.code==='Enter')){
     e.preventDefault();nextPlay();
    }
@@ -288,14 +289,16 @@ function GameExperience(){
       routes={routes} onRoute={editReceiverRoute} onWaypoint={addWaypoint}
       name={buttonLabel} jersey={jersey} clock={formatClock(game.seconds)} clockRunning={game.clockRunning}
       downs={game.down+' & '+game.toGo} yards={fieldSpot(game.yard)}
-      timeouts={game.timeouts} onTimeout={callTimeout} onSnap={snap} onCheck={()=>setStage('ready')}
+      timeouts={game.timeouts} onTimeout={callTimeout} onSetPlay={setPlayAtLine}
       onSpecial={special} fieldGoalYards={kickDistance(game.yard)} canKick={scenarioId!=='lviii-ot'} scout={scout} scoreLead={game.ours-game.theirs} timeoutsLeft={game.timeouts}
       tempo={tempo} onTempo={setTempo} rpoChoice={rpoChoice} onRpoChoice={setRpoChoice}/>}
-   {stage==='ready'&&!lobbyOpen&&<div className="v5-readyside v6-presnap">
+   {stage==='ready'&&!lobbyOpen&&showFieldReads&&<div className="v5-readyside v6-presnap">
    <span className="v5-eyebrow"><Shield size={15}/> AT THE LINE · {teams[0].abbr} OFFENSE</span>
+   <button className="v7-hide-reads" aria-label="Hide scouting panel" onClick={()=>setShowFieldReads(false)}>×</button>
    <h2>{selected.name}</h2>
    <p>{scout.shell} · {scout.pressure} PRESSURE</p>
    <small>{scout.note}</small>
+   <small className="v7-coach-pause">TACTICAL PAUSE · NO REAL-TIME COUNTDOWN</small>
    <div><span>{FORMATIONS.find(f=>f.id===call.formation)?.name}</span><span>{PROTECTIONS.find(f=>f.id===call.protection)?.name}</span></div>
    <div className="v6-audible-list">
     <strong>AUDIBLE / CHANGE THE LOOK</strong>
@@ -305,7 +308,7 @@ function GameExperience(){
        <span>{family}</span><b>{choice.name}</b>
      </button>:null;
     })}
-    <small>Audible costs 2 seconds when the game clock is running.</small>
+    <small>Audible costs 2 game seconds. Take your time reading the defense.</small>
    </div>
  </div>}
    {stage==='live'&&!lobbyOpen&&<div className="v5-live-head">
@@ -337,10 +340,10 @@ function GameExperience(){
    {!lobbyOpen&&stage!=='calling'&&stage!=='finished'&&<div className="v5-camera-label">{view==='coach'?'ALL-22 · COACH CAM':'FIELD LEVEL · QB CAM'} <span>V TO SWITCH</span></div>}
   </main>
   {!lobbyOpen&&<footer className={'v5-controls v5-controls-'+stage}>
-   {stage==='calling'&&<><div className="v5-control-copy"><span className="v5-eyebrow">OFFENSIVE CALL</span><strong>{selected.name}</strong><small>Choose routes, tempo and snap.</small></div><button className="v5-main-button" onClick={snap}>SNAP THE BALL <Play size={19}/></button></>}
+   {stage==='calling'&&<><div className="v5-control-copy"><span className="v5-eyebrow">PLAY DESIGN</span><strong>{selected.name}</strong><small>Pick and set the play before the snap.</small></div><button className="v5-main-button" onClick={setPlayAtLine}>SET PLAY <ArrowRight size={19}/></button></>}
    {stage==='ready'&&<>
-    <div className="v5-control-copy"><span className="v5-eyebrow"><Shield size={13}/> YOUR CALL</span><strong>{selected.name}</strong><small>{call.formation.toUpperCase()} · {call.protection.toUpperCase()} PROTECTION</small></div>
-    <div className="v5-ready-actions"><button className="v5-secondary" onClick={()=>setStage('calling')}><BookOpen size={16}/> CHANGE PLAY</button><button className="v5-secondary" disabled={!game.clockRunning||!game.timeouts} onClick={callTimeout}><TimerReset size={16}/> TIMEOUT · {game.timeouts}</button><button className="v5-secondary" disabled={!game.clockRunning} onClick={()=>special('spike')}><Clock3 size={16}/> SPIKE</button><button className="v5-secondary" onClick={()=>special('fieldgoal')}><Goal size={16}/> KICK {kickDistance(game.yard)}</button></div>
+    <div className="v5-control-copy"><span className="v5-eyebrow"><Shield size={13}/> OFFENSE SET · COACH PAUSE</span><strong>{selected.name}</strong><small>Read the field. Audible or snap when ready.</small></div>
+    <div className="v5-ready-actions"><button className="v5-secondary" onClick={()=>setStage('calling')}><BookOpen size={16}/> PLAYBOOK</button><button className="v5-secondary" onClick={()=>setShowFieldReads(v=>!v)}><Eye size={16}/> {showFieldReads?'HIDE READ':'SHOW READ'}</button><button className="v5-secondary" disabled={!game.clockRunning||!game.timeouts} onClick={callTimeout}><TimerReset size={16}/> TIMEOUT · {game.timeouts}</button><button className="v5-secondary" disabled={!game.clockRunning} onClick={()=>special('spike')}><Clock3 size={16}/> SPIKE</button><button className="v5-secondary" disabled={scenarioId==='lviii-ot'} onClick={()=>special('fieldgoal')}><Goal size={16}/> KICK {kickDistance(game.yard)}</button></div>
     <button className="v5-main-button" onClick={snap}><Play size={21} fill="currentColor"/> SNAP THE BALL <kbd>SPACE</kbd></button>
    </>}
    {stage==='live'&&running&&<div className="v5-run-console"><div className="v5-pulse"/> <strong>RUN IN PROGRESS</strong><span>BLOCKING · PURSUIT · LIVE TACKLE ENGINE</span></div>}
