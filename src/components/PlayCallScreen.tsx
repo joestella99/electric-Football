@@ -1,5 +1,5 @@
 import {useMemo,useState} from 'react';
-import {ArrowRight,BookOpen,Clock3,Crosshair,Play,Shield,TimerReset,Zap} from 'lucide-react';
+import {ArrowRight,BookOpen,Clock3,Crosshair,Play,Shield,TimerReset,Zap,Goal} from 'lucide-react';
 import {ROUTE_OPTIONS,routeVertices,type RouteBook,type RouteKind} from '../logic/spatial';
 import {FORMATIONS,PROTECTIONS,isEligible,type TacticalCall} from '../logic/tactics';
 import type {Point,ReceiverId} from '../logic/throwing';
@@ -16,6 +16,7 @@ type Props={
  onWaypoint:(id:ReceiverId,point:Point)=>void;name:(id:ReceiverId)=>string;
  jersey:(id:ReceiverId)=>string;clock:string;clockRunning:boolean;downs:string;
  yards:string;timeouts:number;onTimeout:()=>void;onSnap:()=>void;onCheck:()=>void;
+ onSpecial:(play:'spike'|'fieldgoal')=>void; fieldGoalYards:number;canKick:boolean;
  tempo:Tempo;onTempo:(v:Tempo)=>void;rpoChoice:'give'|'pull';onRpoChoice:(v:'give'|'pull')=>void;
 };
 const targets=[7,8,9,10,1] as ReceiverId[];
@@ -114,6 +115,10 @@ export default function PlayCallScreen(p:Props){
       {editingAllowed&&<div className="pc-option-split"><span>QB ROLLOUT</span><div>{(['none','left','right'] as const).map(v=><button key={v} className={(p.call.rollout??'none')===v?'active':''} onClick={()=>p.onCall({...p.call,rollout:v})}>{v.toUpperCase()}</button>)}</div></div>}
       <div className="pc-option-split"><span>TEMPO / CLOCK</span><div>{(['hurry','huddle','drain'] as Tempo[]).map(v=><button key={v} className={p.tempo===v?'active':''} onClick={()=>p.onTempo(v)}>{v==='hurry'?'NO HUDDLE':v==='drain'?'MILK':'HUDDLE'}</button>)}</div></div>
       <div className="pc-situation-warning">{p.scoreLead>=0?'PROTECT THE LEAD':'CHASING '+Math.abs(p.scoreLead)+' POINTS'} · {p.timeoutsLeft} TO LEFT</div>
+      <div className="pc-special-actions">
+        <button disabled={!p.clockRunning} onClick={()=>p.onSpecial('spike')} title="Stop the clock by sacrificing a down"><Clock3 size={15}/> SPIKE</button>
+        <button disabled={!p.canKick} onClick={()=>p.onSpecial('fieldgoal')} title="Kick to tie or win the game"><Goal size={15}/> FG {p.fieldGoalYards} YDS</button>
+      </div>
       <div className="pc-actions"><button disabled={!p.clockRunning||p.timeouts<1} onClick={p.onTimeout}><TimerReset size={15}/> TIMEOUT ({p.timeouts})</button><button onClick={p.onCheck} className="pc-check-secondary"><Shield size={16}/> WALK TO LINE / AUDIBLE</button>
        <button onClick={p.onSnap} className="pc-primary"><Zap size={18}/> SNAP THE BALL <ArrowRight size={20}/></button></div>
     </aside>
