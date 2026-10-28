@@ -18,9 +18,9 @@ const PASS_PROGRESSIONS:Record<string,ReceiverId[]>={
   quick:[7,10,1,9,8],sideline:[9,8,1,7,10],deep:[9,7,8,10,1],screen:[1,10,9,7,8]
 };
 function progression(play:PlayId,coverage:CoverageId,call:TacticalCall):ReceiverId[]{
-  const initial=PASS_PROGRESSIONS[play]??[7,10,1,9,8];
+  const initial:ReceiverId[]=PASS_PROGRESSIONS[play]??PASS_PROGRESSIONS.quick;
   const adjusted=coverage==='cover0'?[10,...initial]:coverage==='cover2'?[9,...initial]:coverage==='cover3'?[1,...initial]:initial;
-  return [...new Set(adjusted)].filter(id=>isEligible(id,call)).slice(0,3);
+  return [...new Set<ReceiverId>(adjusted)].filter(id=>isEligible(id,call)).slice(0,3);
 }
 const ICON: Record<PlayId,string> = {
   quick:'↗',sideline:'⌝',deep:'↑',screen:'↘',inside:'⇧',outside:'↝',spike:'⏱',fieldgoal:'⌁'
