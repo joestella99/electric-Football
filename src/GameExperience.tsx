@@ -5,7 +5,7 @@ import TacticalField2D from './components/TacticalField2D';
 import FieldErrorBoundary from './components/FieldErrorBoundary';
 import Pregame from './components/Pregame';
 import PlayCallScreen from './components/PlayCallScreen';
-import {TEAM_BY_ID,HISTORICAL_CHALLENGES,STYLE_LABEL,practiceGame,teamPlaybook,type TeamConcept} from './logic/nfl';
+import {TEAM_BY_ID,HISTORICAL_CHALLENGES,practiceGame,teamPlaybook,type TeamConcept} from './logic/nfl';
 import {historicalPersonnel} from './logic/nflRoster';
 import {fieldSpot,formatClock,kickDistance,simulate,useTimeout,type GameState,type Result} from './logic/drill';
 import {RECEIVERS,passPlay,pressureLimit,type ReceiverId,type Point} from './logic/throwing';
