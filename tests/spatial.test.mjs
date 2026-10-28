@@ -146,3 +146,20 @@ test('each pass trajectory uses its own consistent lead calculation without chan
  assert.ok(high.every(Number.isFinite));
  assert.deepEqual(before,w.actors.map(a=>[a.x,a.z]));
 });
+
+test('QB sneak puts the ball carrier under center and moves the quarterback forward',()=>{
+ const call={formation:'bunch',protection:'max',concept:'qbsneak'};
+ const w=newWorld(44,'SOFT ZONE','inside',call);
+ const first=w.actors[0].z;
+ for(let i=0;i<65;i++)stepWorld(w,1/60);
+ assert.ok(w.actors[0].z>first+2,'quarterback must surge behind center');
+ assert.ok(w.actors[0].z>w.yard-5,'quarterback keeps the handoff');
+});
+test('the QB rollout moves the passer while play-action delays route release',()=>{
+ const baseCall={formation:'spread',protection:'base'};
+ const normal=newWorld(45,'SOFT ZONE','quick',baseCall);
+ const action=newWorld(45,'SOFT ZONE','quick',{...baseCall,playAction:true,rollout:'right'});
+ for(let i=0;i<55;i++){stepWorld(normal,1/60);stepWorld(action,1/60);}
+ assert.ok(action.actors[0].x>2,'rollout follows QB movement');
+ assert.ok(action.actors[7].z<normal.actors[7].z,'play-action changes route release timing');
+});
