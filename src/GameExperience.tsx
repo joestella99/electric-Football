@@ -120,7 +120,7 @@ function GameExperience(){
   const spent=game.clockRunning?(tempo==='drain'?12:tempo==='huddle'?5:1):0;
   if(game.seconds<=spent){setGame(g=>({...g,seconds:0,status:'lost',message:'THE CLOCK RAN OUT BEFORE THE SNAP.'}));setStage('finished');return;}
   const snapState={...game,seconds:game.seconds-spent};
-  snapDecision.current={grade:gradeDecision(snapState,selected,call,teamBook,snaps),concept:selected,prior:snapState};
+  snapDecision.current={grade:gradeDecision(snapState,{...selected,play:effectivePlay},call,teamBook,snaps),concept:selected,prior:snapState};
   if(spent)setGame(g=>({...g,seconds:g.seconds-spent}));
   playCue('snap',sound);
   setCoverage({});setElapsed(0);setThrowRequest(null);setReceiver(7);
@@ -152,6 +152,7 @@ function GameExperience(){
  const nextPlay=()=>{if(stage==='result'){setStage('calling');setResult(null);setLastCoachGrade(null);setFilter(selected.family);}};
  const special=(id:'spike'|'fieldgoal')=>{
   if(stage!=='ready'&&stage!=='calling')return;
+  if(id==='fieldgoal'&&scenarioId==='lviii-ot')return;
   const r=simulate(game,id,'hurry',Math.random,call);
   complete(r);
  };
@@ -287,7 +288,8 @@ function GameExperience(){
       routes={routes} onRoute={editReceiverRoute} onWaypoint={addWaypoint}
       name={buttonLabel} jersey={jersey} clock={formatClock(game.seconds)} clockRunning={game.clockRunning}
       downs={game.down+' & '+game.toGo} yards={fieldSpot(game.yard)}
-      timeouts={game.timeouts} onTimeout={callTimeout} onSnap={snap} onCheck={()=>setStage('ready')} scout={scout} scoreLead={game.ours-game.theirs} timeoutsLeft={game.timeouts}
+      timeouts={game.timeouts} onTimeout={callTimeout} onSnap={snap} onCheck={()=>setStage('ready')}
+      onSpecial={special} fieldGoalYards={kickDistance(game.yard)} canKick={scenarioId!=='lviii-ot'} scout={scout} scoreLead={game.ours-game.theirs} timeoutsLeft={game.timeouts}
       tempo={tempo} onTempo={setTempo} rpoChoice={rpoChoice} onRpoChoice={setRpoChoice}/>}
    {stage==='ready'&&!lobbyOpen&&<div className="v5-readyside v6-presnap">
    <span className="v5-eyebrow"><Shield size={15}/> AT THE LINE · {teams[0].abbr} OFFENSE</span>
