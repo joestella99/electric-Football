@@ -31,7 +31,7 @@ export const starterRoutes=(play:PlayId):RouteBook=>{
 };
 export type Actor={id:number;side:'offense'|'defense';role:string;x:number;z:number;y:number;heading:number;number:number;targetId?:number;vx?:number;vz?:number};
 export type Flight={target:Point;receiver:ReceiverId;from:Point;duration:number;elapsed:number;position:[number,number,number]};
-export type SpatialOutcome={kind:'catch'|'incomplete'|'breakup'|'interception'|'sack';receiver?:ReceiverId;yards:number;outOfBounds:boolean;elapsed:number;description:string;defenderId?:number};
+export type SpatialOutcome={kind:'catch'|'incomplete'|'breakup'|'interception'|'sack'|'rush';receiver?:ReceiverId;yards:number;outOfBounds:boolean;elapsed:number;description:string;defenderId?:number};
 export type World={
  yard:number;defense:Defense;coverage:CoverageId;call:TacticalCall;play:PlayId;routes:RouteBook;actors:Actor[];
  t:number;flight:Flight|null;outcome:SpatialOutcome|null;phase:'live'|'flight'|'done';
@@ -122,7 +122,36 @@ export function closestDefender(world:World,point:Point){
 export function pocketDistance(world:World):number{
  const qb=actorPoint(world,0);return Math.min(...world.actors.filter(a=>a.role==='DL'||(world.defense==='BLITZ'&&a.role==='LB')).map(a=>distance([a.x,a.z],qb)));
 }
+function updateRunActors(w:World,dt:number){
+ const back=w.actors[1];
+ const tacklers=w.actors.slice(11);
+ // A visible handoff develops before the carrier turns toward the called gap.
+ const outside=w.play==='outside';
+ const t=w.t;
+ const x=outside?(w.call.formation==='trips'?20:-20):2.0;
+ const z=t<.52?w.yard-3.7:w.yard+36;
+ if(t<.52)approach(back,[1.6,w.yard-3.7],dt,10,10);
+ else approach(back,[x,z],dt,outside?9.6:10.4,6.6);
+ const qb=w.actors[0];approach(qb,[0,w.yard-6.2],dt,1);
+ for(const line of w.actors.filter(a=>a.role==='OL')){
+   const d=tacklers[(line.id-2)%4];
+   approach(line,[d.x,w.yard+1.2],dt,3.8,8);
+ }
+ for(const d of tacklers){
+   if(d.role==='DL'){
+     const guard=w.actors[2+(d.id-11)%5];
+     const blocking=Math.hypot(guard.x-d.x,guard.z-d.z)<2.9;
+     approach(d,[back.x,back.z],dt,blocking?2.7:6.1,6.8);
+   }else{
+     const recognition=t>.48;
+     const goal:Point=recognition?[back.x,back.z]:defenderAlignment(d.id,w.coverage,w.yard);
+     approach(d,goal,dt,d.role==='DB'?8:6.8,5.8);
+   }
+ }
+ for(const a of w.actors){a.x=clamp(a.x,-25.5,25.5);a.z=clamp(a.z,1,99);}
+}
 function updateActors(w:World,dt:number){
+ if(w.play==='inside'||w.play==='outside'){updateRunActors(w,dt);return;}
  const defenders=w.actors.slice(11);
  const offense=w.actors.slice(0,11);
  const ballTarget=w.phase==='flight'&&w.flight?w.flight.target:null;
@@ -224,6 +253,17 @@ export function stepWorld(w:World,delta:number):SpatialOutcome|null{
  const dt=clamp(delta,0,.04);
  w.t+=dt;
  updateActors(w,dt);
+ if(w.phase==='live'&&(w.play==='inside'||w.play==='outside')){
+   const carrier=w.actors[1];
+   const contact=w.actors.slice(11).some(a=>Math.hypot(a.x-carrier.x,a.z-carrier.z)<1.85);
+   if((w.t>.87&&contact)||w.t>=5.3||carrier.z>=99){
+     const yards=Math.round(carrier.z-w.yard);
+     const outOfBounds=Math.abs(carrier.x)>24.6;
+     w.outcome={kind:'rush',yards,outOfBounds,elapsed:w.t,description:
+       (contact?'TACKLED':'RUN FINISHED')+' — '+(yards>=0?'+':'')+yards+' YARDS.'};
+     w.phase='done';return w.outcome;
+   }
+ }
  if(w.phase==='flight'&&w.flight){
    const f=w.flight;
    f.elapsed=Math.min(f.duration,f.elapsed+dt);
@@ -246,8 +286,9 @@ export function resultFromWorld(s:GameState,w:World,outcome:SpatialOutcome):Resu
  const yard=clamp(s.yard+outcome.yards,1,100);
  const yards=yard-s.yard;
  const catchMade=outcome.kind==='catch';
- const touchdown=catchMade&&yard>=100;
- const firstDown=catchMade&&yards>=s.toGo;
+ const secured=catchMade||outcome.kind==='rush';
+ const touchdown=secured&&yard>=100;
+ const firstDown=secured&&yards>=s.toGo;
  const down=firstDown||touchdown?1:s.down+1;
  const toGo=firstDown?Math.max(1,Math.min(10,100-yard)):Math.max(1,s.toGo-yards);
  let ours=s.ours,status:GameState['status']='playing',description=outcome.description;
@@ -258,9 +299,9 @@ export function resultFromWorld(s:GameState,w:World,outcome:SpatialOutcome):Resu
  else if(seconds===0){status='lost';description='TIME EXPIRES. '+description;}
  else if(firstDown){description+=' FIRST DOWN.';}
  else if(outcome.outOfBounds)description+=' OUT OF BOUNDS.';
- const grade:Result['grade']=outcome.kind==='catch'?'A':outcome.kind==='breakup'?'C':outcome.kind==='incomplete'?'C':'D';
- return {play:w.play,yards,elapsed,complete:catchMade,outOfBounds:outcome.outOfBounds,turnover:status==='lost'&&outcome.kind==='interception',grade,description,
-  state:{...s,seconds,yard,toGo,down,ours,status,clockRunning:catchMade&&!outcome.outOfBounds||outcome.kind==='sack',plays:s.plays+1,message:description,
+ const grade:Result['grade']=secured?(yards>=s.toGo?'A':yards>=4?'B':'C'):outcome.kind==='breakup'||outcome.kind==='incomplete'?'C':'D';
+ return {play:w.play,yards,elapsed,complete:secured,outOfBounds:outcome.outOfBounds,turnover:status==='lost'&&outcome.kind==='interception',grade,description,
+  state:{...s,seconds,yard,toGo,down,ours,status,clockRunning:secured&&!outcome.outOfBounds||outcome.kind==='sack',plays:s.plays+1,message:description,
   defense:s.defense==='BLITZ'?'SOFT ZONE':s.defense==='SOFT ZONE'?'LOADED BOX':'BLITZ'}
  };
 }
