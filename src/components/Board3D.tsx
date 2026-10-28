@@ -329,7 +329,7 @@ function Scene(props:Props){
     {world ? <>
       <SpatialClock world={world} request={throwRequest} game={game} elapsed={elapsed} selected={receiver} assistAim={assistAim} onLead={onLead}
         onTick={onTick} onCoverage={onCoverage} onSpatialResult={onSpatialResult}/>
-      <InstancedPlayers world={world} active={true} motion={null} progress={progress} selected={receiver}/>
+      <InstancedPlayers world={world} active={true} motion={null} progress={progress} selected={receiver} offenseColor={offenseColor} opponentColor={opponentColor}/>
       <SpatialBall world={world}/>
       <BallTrail world={world}/>
       <CatchFlash world={world}/>
