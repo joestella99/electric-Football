@@ -256,7 +256,7 @@ export function stepWorld(w:World,delta:number):SpatialOutcome|null{
  if(w.phase==='live'&&(w.play==='inside'||w.play==='outside')){
    const carrier=w.actors[1];
    const contact=w.actors.slice(11).some(a=>Math.hypot(a.x-carrier.x,a.z-carrier.z)<1.85);
-   if((w.t>.87&&contact)||w.t>=5.3||carrier.z>=99){
+   if((w.t>1.32&&contact)||w.t>=5.3||carrier.z>=99){
      const yards=Math.round(carrier.z-w.yard);
      const outOfBounds=Math.abs(carrier.x)>24.6;
      w.outcome={kind:'rush',yards,outOfBounds,elapsed:w.t,description:
