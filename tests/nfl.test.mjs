@@ -16,12 +16,12 @@ test('all 32 real NFL clubs appear once with usable colors and divisions',()=>{
   assert.ok(['East','West','North','South'].includes(t.division));
  }
 });
-test('each NFL club has eight original, usable formation-and-route play calls',()=>{
+test('each NFL club has 27 original playable Run Pass RPO and Trick concepts',()=>{
  for(const t of NFL_TEAMS){
   const book=teamPlaybook(t.id);
-  assert.equal(book.length,8,t.name);
-  assert.equal(new Set(book.map(b=>b.id)).size,8);
-  assert.ok(book.some(p=>p.family==='RUN'));assert.ok(book.some(p=>p.family==='PASS'));
+  assert.equal(book.length,27,t.name);
+  assert.equal(new Set(book.map(b=>b.id)).size,27);
+  for(const family of ['RUN','PASS','RPO','TRICK'])assert.ok(book.some(p=>p.family===family),t.id+' lacks '+family);
   for(const call of book){
    for(const id of [7,8,9,10,1]){
     assert.ok(call.routes[id]);
