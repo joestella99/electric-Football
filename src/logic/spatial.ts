@@ -30,7 +30,11 @@ export const starterRoutes=(play:PlayId):RouteBook=>{
  return {7:{kind:choices[0]},8:{kind:choices[1]},9:{kind:choices[2]},10:{kind:choices[3]},1:{kind:choices[4]}};
 };
 export type Actor={id:number;side:'offense'|'defense';role:string;x:number;z:number;y:number;heading:number;number:number;targetId?:number;vx?:number;vz?:number};
-export type Flight={target:Point;receiver:ReceiverId;from:Point;duration:number;elapsed:number;position:[number,number,number]};
+export type PassStyle='bullet'|'touch';
+export type Flight={target:Point;receiver:ReceiverId;from:Point;duration:number;elapsed:number;position:[number,number,number];style:PassStyle};
+export function passDuration(distance:number,style:PassStyle='bullet'){
+ return style==='bullet'?clamp((.30+distance/52)*.84,.34,1.35):clamp((.30+distance/52)*1.20,.52,1.88);
+}
 export type SpatialOutcome={kind:'catch'|'incomplete'|'breakup'|'interception'|'sack'|'rush';receiver?:ReceiverId;yards:number;outOfBounds:boolean;elapsed:number;description:string;defenderId?:number};
 export type World={
  yard:number;defense:Defense;coverage:CoverageId;call:TacticalCall;play:PlayId;routes:RouteBook;actors:Actor[];
@@ -193,12 +197,12 @@ function updateActors(w:World,dt:number){
    a.z=clamp(a.z,1,99);
  }
 }
-export function throwBall(w:World,target:Point,receiver:ReceiverId):boolean{
+export function throwBall(w:World,target:Point,receiver:ReceiverId,style:PassStyle='bullet'):boolean{
  if(w.phase!=='live'||!isEligible(receiver,w.call))return false;
  const start:Point=[0,w.yard-5];
  const delta=distance(start,target);
- const duration=clamp(.30+delta/52,.42,1.56);
- w.flight={target:[clamp(target[0],-25.5,25.5),clamp(target[1],1,99)],receiver,from:start,duration,elapsed:0,position:[0,3,w.yard-5]};
+ const duration=passDuration(delta,style);
+ w.flight={target:[clamp(target[0],-25.5,25.5),clamp(target[1],1,99)],receiver,from:start,duration,elapsed:0,position:[0,3,w.yard-5],style};
  w.phase='flight';
  return true;
 }
@@ -206,10 +210,10 @@ export function throwBall(w:World,target:Point,receiver:ReceiverId):boolean{
  * Uses the SAME pursuit and route integration as the on-field simulation;
  * there is no scripted catch position or completion probability.
  */
-export function predictLead(w:World,id:ReceiverId):Point{
+export function predictLead(w:World,id:ReceiverId,style:PassStyle='bullet'):Point{
   let target=actorPoint(w,id);
   for(let iteration=0;iteration<2;iteration++){
-    const flightTime=clamp(.30+distance([0,w.yard-5],target)/52,.42,1.56);
+    const flightTime=passDuration(distance([0,w.yard-5],target),style);
     const projection:World={
       ...w,t:w.t,phase:'live',flight:null,outcome:null,
       actors:w.actors.map(a=>({...a}))
@@ -268,7 +272,7 @@ export function stepWorld(w:World,delta:number):SpatialOutcome|null{
    const f=w.flight;
    f.elapsed=Math.min(f.duration,f.elapsed+dt);
    const p=f.elapsed/f.duration;
-   const arc=Math.sin(Math.PI*p)*Math.min(8.5,2.5+distance(f.from,f.target)*.15);
+   const arc=Math.sin(Math.PI*p)*Math.min(f.style==='touch'?11.5:5.4,1.8+distance(f.from,f.target)*(f.style==='touch'?.18:.09));
    f.position=[f.from[0]+(f.target[0]-f.from[0])*p,2.5+arc,f.from[1]+(f.target[1]-f.from[1])*p];
    if(f.elapsed>=f.duration){
      w.outcome=finishFlight(w);w.phase='done';return w.outcome;
