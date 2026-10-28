@@ -255,3 +255,65 @@
 .v5-draw-button{display:flex;justify-content:center;align-items:center;gap:8px;background:#345845;color:#fff0cc;border:1px dashed #f4ce82;padding:8px;font:900 12px 'Barlow Condensed',sans-serif;letter-spacing:.5px}
 .v5-draw-button.active{background:#b45638;border-style:solid}
 .v5-draw-help{color:#a8c5ad;font:500 10px/1.4 Outfit,sans-serif}
+
+/* Live 2D fallback is a complete pitch renderer, not a blocked-screen notice. */
+.tactical-field{position:absolute;inset:0;z-index:0;display:flex;align-items:stretch;justify-content:center;overflow:hidden;background:radial-gradient(circle at 50% 25%,#29473a,#091d17 79%);color:#f7e9cc;pointer-events:none}
+.tactical-field-sky{position:absolute;inset:0;opacity:.5;background:repeating-linear-gradient(25deg,#1b342422 0,#1b342422 32px,#2b56452a 33px,#2b56452a 38px)}
+.tactical-field-frame{position:relative;width:min(64%,650px);height:100%;padding:8px;background:linear-gradient(90deg,#a77942,#ddc18d,#a77942);box-shadow:0 0 0 5px #15271b,0 0 0 10px #7c5135,0 16px 35px #000b}
+.tactical-field-turf{position:relative;width:100%;height:100%;overflow:hidden;border:3px solid #e2dcc0;background:
+ linear-gradient(90deg,transparent 0 26%,#e7edc81c 26.1% 26.5%,transparent 26.6% 73.4%,#e7edc81c 73.5% 73.9%,transparent 74%),
+ repeating-linear-gradient(to top,#27593f 0%,#27593f 10%,#2d6347 10%,#2d6347 20%);box-shadow:inset 0 0 35px #030d0766}
+.tactical-field-turf:before,.tactical-field-turf:after{content:"";position:absolute;top:0;bottom:0;width:2px;background:#ecf1df7d;z-index:1}
+.tactical-field-turf:before{left:4%}.tactical-field-turf:after{right:4%}
+.tactical-field-yard{position:absolute;left:0;right:0;transform:translateY(50%);display:flex;align-items:center;justify-content:space-between;gap:10px;z-index:1;font:700 12px 'DM Mono',monospace;color:#e0edd2ab;padding:0 6%;text-shadow:1px 1px #102c1c}
+.tactical-field-yard i{display:block;flex:1;height:1px;background:#e2efc8aa;order:1}
+.tactical-field-yard span:first-child{order:0}.tactical-field-yard span:last-child{order:2}
+.tactical-field-line{position:absolute;left:0;right:0;height:3px;z-index:2;transform:translateY(50%);background:#60c9f1;box-shadow:0 0 7px #50bfff}
+.tactical-field-line span{position:absolute;left:6px;bottom:5px;background:#12362d;color:#cfedf1;padding:3px 5px;font:700 8px 'DM Mono',monospace}
+.tactical-field-sticks{background:#f5d270;box-shadow:0 0 7px #ffdd8a}
+.tactical-field-sticks span{color:#f2db9e}
+.tactical-field-figure{position:absolute;z-index:4;display:flex;align-items:center;justify-content:center;min-width:22px;width:27px;height:27px;border:2px solid #f4e8cc;border-radius:50%;transform:translate(-50%,50%);font:900 9px 'DM Mono',monospace;color:#fff;text-shadow:1px 1px 2px #000;box-shadow:0 3px 0 #0b1b17,0 0 0 2px #061f1599;transition:bottom 38ms linear,left 38ms linear}
+.tactical-field-figure.defense{border-color:#dbe8e2}.tactical-field-figure.offense{border-color:#ffdd9f}
+.tactical-field-figure.throwing{outline:3px solid #ffdb86;outline-offset:4px}
+.tactical-field-ball{position:absolute;z-index:6;background:#8f4827;border:2px solid #f2d9ac;width:16px;height:10px;border-radius:50%;transform:translate(-50%,50%) rotate(-27deg);box-shadow:0 0 11px #ffe8a8}
+.tactical-field-route{position:absolute;inset:0;width:100%;height:100%;z-index:2;overflow:visible}
+.tactical-field-label{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);font:800 12px 'Barlow Condensed',sans-serif;white-space:nowrap;letter-spacing:2px;color:#d1e8c4bb;text-shadow:0 1px 3px #112617;z-index:1}
+.tactical-field-caption{position:absolute;bottom:18px;right:15px;display:flex;flex-direction:column;gap:3px;background:#10271edb;border:1px solid #658d73;padding:9px 12px;color:#e5d3a9;z-index:5;max-width:250px}
+.tactical-field-caption b{font:900 15px 'Barlow Condensed',sans-serif}.tactical-field-caption span{font:600 10px Outfit,sans-serif;color:#bfd0c1}
+.tactical-field-preview{justify-content:flex-start}
+.tactical-field-preview .tactical-field-frame{width:max(19vw,240px);margin:0;height:100%;padding:4px;border:0;box-shadow:none}
+.tactical-field-preview .tactical-field-turf{border:none}
+.tactical-field-preview .tactical-field-figure{width:15px;height:15px;min-width:15px;font-size:6px;border-width:1px}
+.tactical-field-preview .tactical-field-yard{font-size:8px}
+.tactical-field-preview .tactical-field-caption{display:none}
+.tactical-field-preview .tactical-field-label{font-size:9px;letter-spacing:.5px}
+.v5-call-situation{background:transparent;border:0;pointer-events:none;padding:12px 15px;z-index:2}
+.v5-call-situation .v5-field-mini{display:none}
+.v5-call-situation h3{font-size:36px;margin:3px 0;text-shadow:2px 3px 3px #071a16}
+.v5-call-situation>p{display:inline-block;background:#0b241be8;padding:5px}
+.v5-call-situation .v5-clock-warning{margin-top:auto;background:#0c251cec;padding:9px;border:1px solid #547a5c}
+.v5-call-situation>.v5-eyebrow{background:#11261ee8;padding:8px}
+.v5-call-situation .v5-difficulty{background:#0d271df0;padding:5px}
+.field-loading-cover{position:absolute;z-index:9;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:9px;background:radial-gradient(circle at center,#173b2fec,#071a15f7);text-align:center;padding:18px}
+.field-loading-cover strong{font:900 29px 'Barlow Condensed',sans-serif;color:#f3d39a;letter-spacing:1px}
+.field-loading-cover span{font:500 12px Outfit,sans-serif;color:#ced9c6}
+.field-loading-cover button{margin-top:14px;padding:12px 16px;background:#e4bd7c;border:0;color:#213b2e;font:900 18px 'Barlow Condensed',sans-serif}
+.field-recovery-note{position:absolute;top:70px;left:50%;transform:translateX(-50%);z-index:4;max-width:min(90%,430px);padding:7px 14px;background:#263b31ee;border:1px solid #d1ba88;color:#fbe0b0;text-align:center;font:700 10px 'DM Mono',monospace}
+.v5-view-toggle{width:43px}
+.v5-view-toggle span{font:900 12px 'DM Mono',monospace;color:#eccf8e}
+.v5-view-toggle:disabled{opacity:.54}
+@media(max-width:950px){
+ .tactical-field-frame{width:min(82%,550px)}
+ .tactical-field-preview .tactical-field-frame{width:100%}
+ .tactical-field-preview .tactical-field-caption{display:none}
+ .v5-call-situation{display:none}
+}
+@media(max-width:690px){
+ .tactical-field-frame{width:100%;padding:3px;border-width:4px}
+ .tactical-field-preview .tactical-field-frame{width:100%}
+ .tactical-field-figure{width:20px;height:20px;min-width:20px;font-size:7px}
+ .tactical-field-yard{font-size:9px}
+ .tactical-field-caption{right:7px;bottom:6px;max-width:190px;padding:6px}
+ .tactical-field-caption span{font-size:8px}
+ .v5-view-toggle{width:28px}.v5-view-toggle span{font-size:9px}
+}
