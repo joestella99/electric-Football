@@ -30,24 +30,34 @@ type Props = {
 const clip = (v: number,lo:number,hi:number)=>Math.max(lo,Math.min(hi,v));
 const ballGeometry = new THREE.SphereGeometry(.58,10,8);
 
-function CameraRig({yard,view,live,elapsed}:{yard:number;view:View;live:Live|null;elapsed:React.RefObject<number>}) {
+function CameraRig({yard,view,world}:{yard:number;view:View;world:World|null}) {
   const camera=useThree(s=>s.camera);
   const size=useThree(s=>s.size);
-  const target=useRef(new THREE.Vector3(0,0,clip(yard+12,23,85)));
+  const point=useRef(new THREE.Vector3(0,0,clip(yard+17,23,87)));
   const pose=useRef(new THREE.Vector3());
   useFrame((_,dt)=>{
-    const aspect=size.width/Math.max(1,size.height);
-    const mobile=aspect<1.12;
-    const focus=clip(yard+12+(live?Math.min(29,elapsed.current*3.7):0),23,85);
-    const k=1-Math.exp(-dt*4.3);
-    target.current.z+=(focus-target.current.z)*k;
-    if(view==='coach')pose.current.set(0,(mobile?88:76)+(live?elapsed.current*1.4:0),focus+.01);
-    else pose.current.set(mobile?0:7,(mobile?65:49)+(live?Math.min(18,elapsed.current*2.4):0),focus-(mobile?44:36)-(live?Math.min(14,elapsed.current*1.8):0));
-    camera.position.lerp(pose.current,k);
-    camera.lookAt(target.current);
+    const mobile=size.width/Math.max(1,size.height)<1.12;
+    const ball=world?.flight;
+    const running=world&&(world.play==='inside'||world.play==='outside');
+    const runner=running?world.actors[1]:null;
+    const focus=ball?clip(ball.position[2]+4,20,90):running?clip((runner?.z??yard)+7,20,90):clip(yard+18,20,90);
+    const x=ball?ball.position[0]*.18:running?(runner?.x??0)*.12:0;
+    const ease=1-Math.exp(-dt*(ball?3.3:2.7));
+    point.current.x+=(x-point.current.x)*ease;
+    point.current.z+=(focus-point.current.z)*ease;
+    if(view==='coach'){
+      pose.current.set(point.current.x,mobile?87:79,point.current.z+.01);
+    }else{
+      // Keep the throwing camera stable until the ball leaves the QB's hand.
+      const side=mobile?0:8;
+      const z=point.current.z-(mobile?43:35);
+      pose.current.set(side,mobile?69:54,z);
+    }
+    camera.position.lerp(pose.current,ease);
+    camera.lookAt(point.current);
     if(camera instanceof THREE.PerspectiveCamera){
-      const fov=mobile?53:43;
-      if(camera.fov!==fov){camera.fov=fov;camera.updateProjectionMatrix();}
+      const desired=mobile?51:45;
+      if(camera.fov!==desired){camera.fov=desired;camera.updateProjectionMatrix();}
     }
   });
   return null;
@@ -152,7 +162,11 @@ function SpatialBall({world}:{world:World}){
   const mesh=useRef<THREE.Mesh>(null);
   useFrame(()=>{
     if(!mesh.current)return;
-    if(world.flight){
+    if(world.play==='inside'||world.play==='outside'){
+      const [x,z]=actorPoint(world,1);
+      mesh.current.position.set(x,2.15,z);
+      mesh.current.rotation.x=world.t*5;
+    }else if(world.flight){
       const [x,y,z]=world.flight.position;
       mesh.current.position.set(x,y,z);
       mesh.current.rotation.x=world.flight.elapsed*19;
@@ -234,7 +248,7 @@ function SpatialClock({world,request,game,onTick,onCoverage,onSpatialResult,onLe
         read[id]=Math.round(Math.hypot(defender.x-spot[0],defender.z-spot[1])*10)/10;
       }
       onCoverage(read);
-      if(assistAim&&world.phase==='live'&&isEligible(selected,world.call))onLead(predictLead(world,selected));
+      if(assistAim&&passPlay(world.play)&&world.phase==='live'&&isEligible(selected,world.call))onLead(predictLead(world,selected));
     }
     if(outcome){
       resolvedHold.current+=dt;
@@ -254,7 +268,7 @@ function SpatialBeacon({world,id,selected,onAutoThrow}:{world:World;id:ReceiverI
     const [x,z]=actorPoint(world,id);
     marker.current.position.set(x,5.4,z);
   });
-  if(!isEligible(id,world.call)||world.phase!=='live')return null;
+  if(!passPlay(world.play)||!isEligible(id,world.call)||world.phase!=='live')return null;
   const spot=actorPoint(world,id);
   const defender=closestDefender(world,spot);
   const gap=Math.hypot(defender.x-spot[0],defender.z-spot[1]);
@@ -299,15 +313,15 @@ function Scene(props:Props){
   const {yard,toGo,defense,play,view,call,live,motion,aim,receiver,routes,drawTarget,throwRequest,game,onAim,onDrawPoint,onThrow,onAutoThrow,onLead,assistAim,onTick,onCoverage,onSpatialResult,onDone,quality,onFps}=props;
   const elapsed=useRef(0),progress=useRef(0),lastHover=useRef(0);
   const displayYard=motion?.startYard??yard;
-  const previewWorld=useMemo(()=>newWorld(displayYard,defense,play,call,routes),[displayYard,defense,play,call,routes]);
-  const world=useMemo(()=>live?newWorld(yard,defense,play,call,routes):null,[live?.id]);
+  const previewWorld=useMemo(()=>newWorld(displayYard,defense,play,call,routes,game.plays),[displayYard,defense,play,call,routes,game.plays]);
+  const world=useMemo(()=>live?newWorld(yard,defense,play,call,routes,game.plays):null,[live?.id]);
   return <>
     <color attach="background" args={['#111a18']}/>
     <fog attach="fog" args={['#111a18',125,235]}/>
     <ambientLight intensity={1.35} color="#fff0d2"/>
     <directionalLight position={[28,70,-16]} intensity={2.05} color="#fce8c6" castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024}/>
     <directionalLight position={[-20,30,70]} intensity={.7} color="#9bdbd5"/>
-    <CameraRig yard={displayYard} view={view} live={live} elapsed={elapsed}/>
+    <CameraRig yard={displayYard} view={view} world={world}/>
     <PerformanceSampler onFps={onFps}/>
     <StadiumDiorama crowd={quality!=='performance'}/>
     <MemoCabinet/>
@@ -320,14 +334,14 @@ function Scene(props:Props){
       <SpatialBall world={world}/>
       <BallTrail world={world}/>
       <CatchFlash world={world}/>
-      {TARGETS.map(id=><SpatialBeacon key={id} world={world} id={id} selected={id===receiver} onAutoThrow={onAutoThrow}/>)}
-      <Target aim={aim} active={world.phase==='live'}/>
+      {passPlay(play)&&TARGETS.map(id=><SpatialBeacon key={id} world={world} id={id} selected={id===receiver} onAutoThrow={onAutoThrow}/>)}
+      <Target aim={aim} active={passPlay(play)&&world.phase==='live'}/>
     </> : <>
       <Clock live={null} motion={motion} defense={defense} protection={call.protection} elapsed={elapsed} progress={progress} onTick={onTick} onSack={()=>{}} onDone={onDone}/>
       <InstancedPlayers world={previewWorld} active={false} motion={motion} progress={progress} selected={receiver}/>
       <Ball yard={displayYard} motion={motion} progress={progress}/>
     </>}
-    {(drawTarget!==null&&!live&&!motion||!!world&&world.phase==='live') &&
+    {(drawTarget!==null&&!live&&!motion||!!world&&passPlay(play)&&world.phase==='live') &&
       <mesh rotation={[-Math.PI/2,0,0]} position={[0,1.2,50]}
         onPointerMove={e=>{
           if(!world||world.phase!=='live')return;
