@@ -3,6 +3,7 @@ import { ArrowRight, CircleHelp, Clock3, Crosshair, Eye, Flag, Fullscreen, Goal,
 import Board3D, { type Live, type Motion, type ThrowRequest } from './components/Board3D';
 import Pregame from './components/Pregame';
 import { HISTORICAL_CHALLENGES,TEAM_BY_ID,STYLE_LABEL,practiceGame,teamPlaybook } from './logic/nfl';
+import {historicalPersonnel} from './logic/nflRoster';
 import { fieldSpot, formatClock, initialGame, kickDistance, simulate, useTimeout, type GameState, type PlayId, type Result } from './logic/drill';
 import { RECEIVERS, passPlay, pressureLimit, type Point, type ReceiverId } from './logic/throwing';
 import { ROUTE_OPTIONS, starterRoutes, routeAt, type RouteKind, type RouteBook } from './logic/spatial';
@@ -57,6 +58,7 @@ function App() {
   const keyboardRef=useRef<(event:KeyboardEvent)=>void>(()=>{});
   const active=!!live||!!motion;
   const ownTeam=TEAM_BY_ID[offenseId],opposingTeam=TEAM_BY_ID[opponentId];
+  const personnel=historicalPersonnel(scenarioId);
   const teamBook=teamPlaybook(offenseId);
   const currentConcept=teamBook.find(c=>c.id===selectedConcept);
   const finished=game.status!=='playing';
@@ -71,7 +73,7 @@ function App() {
   const remaining=Math.max(0,game.seconds-(live?Math.ceil(elapsed):0)-(live&&game.clockRunning?7:0));
   const progress=live? Math.min(100,(elapsed/pressure)*100):0;
   const throwing=throwRequest!==null;
-  const selectedName=RECEIVERS.find(r=>r.id===receiver)?.label??'HARRIS';
+  const selectedName=personnel?.skill[receiver].last??RECEIVERS.find(r=>r.id===receiver)?.label??'RECEIVER';
 
   const setupDrive=(fresh:GameState,teamId:string,opponent:string,id:string)=>{
     const concept=teamPlaybook(teamId)[0];
@@ -234,7 +236,7 @@ function App() {
       </div>
     </header>
     <div className="arena">
-      <Board3D offenseColor={ownTeam.primary} opponentColor={opposingTeam.primary} yard={game.yard} toGo={game.toGo} defense={game.defense} play={play} view={view} call={call} game={game}
+      <Board3D offenseColor={ownTeam.primary} opponentColor={opposingTeam.primary} personnel={personnel} yard={game.yard} toGo={game.toGo} defense={game.defense} play={play} view={view} call={call} game={game}
         live={live} motion={motion} aim={aim} receiver={receiver} routes={routes} drawTarget={drawing} throwRequest={throwRequest}
         onSelect={choose} onAim={point=>{if(!throwing){setAutoLead(false);setAim(point);}}}
         onDrawPoint={drawPoint} onThrow={throwNow} onAutoThrow={id=>throwNow(aim,id,true)} onLead={setAim} assistAim={autoLead}
@@ -290,7 +292,7 @@ function App() {
       <div className="deck-meta">
         <div className="label-tiny"><span className="live-led"/> {live?'QUARTERBACK MODE':active?'PLAYING':'OFFENSIVE COORDINATOR'}</div>
         <h2>{runInProgress?'FOLLOW THE BLOCKS.':live?'READ THE COVERAGE.':finished?'THE FINAL DRIVE.':motion?'WATCH THE PLAY.':'CALL YOUR SHOT.'}</h2>
-        <p>{runInProgress?'Real pursuit and tackle detection—no yardage roll.':live?'Progress through the reads, then hit the window.':motion?'Players are in motion.':finished?'Run it back or try a different scenario.':STYLE_LABEL[ownTeam.style]+' · '+(currentConcept?.name??'CHOOSE A PLAY')}</p>
+        <p>{runInProgress?(personnel?.skill[1].last??'RUNNING BACK')+' attacking the defense.':live?(personnel?.qb.last??'QB')+' · progress through the reads, then hit the window.':motion?'Players are in motion.':finished?'Run it back or try a different scenario.':STYLE_LABEL[ownTeam.style]+' · '+(currentConcept?.name??'CHOOSE A PLAY')}</p>
         {!live&&!active&&!finished&&<button className="coach-dock-button" onClick={()=>setTacticsOpen(true)}><SlidersHorizontal size={15}/> CHANGE SCHEME <span>C</span></button>}
       </div>
 
@@ -300,13 +302,13 @@ function App() {
       </div> : live ? <>
         <div className="receiver-picker">
           {RECEIVERS.map((r,i)=><button disabled={!isEligible(r.id,call)} className={'receiver-choice '+(receiver===r.id?'selected':'')} key={r.id} onClick={()=>choose(r.id)}>
-            <kbd>{i+1}</kbd><span className="jersey">#{r.number}</span><b>{r.label}</b><small className={'receiver-status status-'+((coverage[r.id]??0)>7?'green':(coverage[r.id]??0)>3.5?'amber':'red')}>{isEligible(r.id,call)?(coverage[r.id]===undefined?'READING':coverage[r.id]>7?'OPEN':coverage[r.id]>3.5?'WINDOW':'COVERED'):'BLOCKING'}</small>
+            <kbd>{i+1}</kbd><span className="jersey">#{personnel?.skill[r.id].number??r.number}</span><b>{personnel?.skill[r.id].last??r.label}</b><small className={'receiver-status status-'+((coverage[r.id]??0)>7?'green':(coverage[r.id]??0)>3.5?'amber':'red')}>{isEligible(r.id,call)?(coverage[r.id]===undefined?'READING':coverage[r.id]>7?'OPEN':coverage[r.id]>3.5?'WINDOW':'COVERED'):'BLOCKING'}</small>
           </button>)}
         </div>
         <div className="action-stack live-actions">
           <span className="action-label"><Crosshair size={13}/> {autoLead?'AUTO-LEADING':'MANUAL AIM'} · {selectedName}</span>
           <button className="primary-action throw-action" disabled={throwing} onClick={()=>throwNow(aim,undefined,true)}><Target size={19}/> THROW NOW <kbd>SPACE</kbd></button>
-          <span className="action-foot">{throwing?'BALL RELEASED':suggested.map((id,i)=>`${i+1}. ${RECEIVERS.find(r=>r.id===id)?.label}`).join(' → ')}</span>
+          <span className="action-foot">{throwing?'BALL RELEASED':suggested.map((id,i)=>String(i+1)+'. '+(personnel?.skill[id].last??RECEIVERS.find(r=>r.id===id)?.label)).join(' → ')}</span>
         </div>
       </> : <>
         <div className="play-selector nfl-playbook">
