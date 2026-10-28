@@ -494,3 +494,33 @@
 .pc-special-actions button:disabled{opacity:.35;cursor:not-allowed}
 .pc-special-actions button:not(:disabled):hover{background:#537860}
 @media(max-width:780px){.pc-special-actions{gap:4px;padding-top:4px}.pc-special-actions button{font-size:10px;padding:5px 2px}.pc-special-actions svg{width:12px;height:12px}}
+
+/* V7 — intentional choose → set → scout → audible → snap flow */
+.pc-setting-note{display:flex;align-items:center;justify-content:center;gap:7px;padding:7px;background:#17382b;border:1px solid #607960;color:#f0d292;font:800 10px/1.35 'DM Mono',monospace;text-align:center}
+.pc-headline small{color:#e8c789;letter-spacing:.5px}
+.pc-snap-button{background:#e7c587;color:#142f25;min-width:162px}
+.v7-hide-reads{position:absolute;top:7px;right:9px;border:1px solid #5e8b73;background:#193b2e;color:#f1dbaa;font:900 18px/1 'Barlow Condensed',sans-serif;width:24px;height:24px}
+.v7-coach-pause{display:block!important;color:#eccc93!important;letter-spacing:.5px!important;border-top:1px solid #567a65;padding-top:7px}
+.v6-presnap{width:min(320px,32vw);max-height:calc(100% - 95px)}
+.v5-controls-ready .v5-control-copy{max-width:232px}
+.v5-controls-ready .v5-ready-actions{gap:5px}
+.v5-controls-ready .v5-secondary{padding:9px}
+.tactical-pass-key{position:absolute;bottom:calc(100% + 33px);left:50%;transform:translateX(-50%);display:grid;place-items:center;min-width:37px;width:37px;height:37px;background:#efc979;border:3px solid #fff3cb;outline:2px solid #1f382b;border-radius:11px;color:#163024;font:900 23px/1 'DM Mono',monospace;box-shadow:0 3px 13px #0009;z-index:7;white-space:nowrap}
+.tactical-jersey-number{background:#112f25e8}
+.tactical-field-preview .tactical-pass-key{width:21px;height:21px;min-width:21px;border-width:1px;outline-width:1px;border-radius:5px;bottom:calc(100% + 20px);font-size:11px}
+.tactical-field-preview .tactical-jersey-number{font-size:7px;min-width:16px}
+@media(max-width:950px){
+ .v6-presnap{width:min(284px,45vw);padding:10px}
+ .v5-controls-ready .v5-secondary{padding:7px 6px}
+ .pc-snap-button{min-width:128px}
+}
+@media(max-width:690px){
+ .pc-headline h2{font-size:24px}.pc-headline small{font-size:7px}
+ .pc-snap-button{min-width:98px;padding:7px 8px;font-size:16px}
+ .pc-setting-note{font-size:8px;padding:5px}
+ .v6-presnap{width:min(244px,65vw);max-height:calc(100% - 69px);padding:9px}
+ .v5-controls-ready .v5-ready-actions{gap:3px}
+ .v5-controls-ready .v5-secondary{padding:5px 4px;font-size:10px}
+ .v5-controls-ready .v5-control-copy{display:none}
+ .tactical-pass-key{bottom:calc(100% + 25px);width:27px;height:27px;min-width:27px;font-size:16px;border-width:2px;border-radius:7px}
+}
