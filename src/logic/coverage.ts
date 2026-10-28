@@ -1,5 +1,5 @@
 import type { Defense } from './drill.ts';
-import type { Point, ReceiverId } from './throwing.ts';
+import type { Point } from './throwing.ts';
 
 export type CoverageId='cover0'|'cover1'|'cover2'|'cover3'|'quarters';
 export type CoverageFamily={id:CoverageId;name:string;shell:'ONE HIGH'|'TWO HIGH'|'PRESS ZERO';description:string;weakness:string;pressure:string;};
@@ -47,7 +47,6 @@ export function coverageResponsibility(
  const z=clip(yard,1,99);
  let point:Point=[actor.x,actor.z],assignment='HOOK';
  let speed=7.1;
- const x=actor.x;
  if(coverage==='cover0'||coverage==='cover1'){
    const match:Record<number,number>={18:7,19:9,20:10,21:8,15:1,16:9,17:10};
    if(coverage==='cover1'&&actor.id===19){
