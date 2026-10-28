@@ -244,3 +244,131 @@
  .run-live-bands{flex-direction:row;gap:6px}.run-live-bands span{font-size:9px;padding:5px}
 }
 @media(max-height:640px){.coverage-coach-strip{bottom:44px;padding:5px 8px}.coverage-coach-strip>span{display:none}}
+
+/* FOURTH DOWN — immersive NFL team selection and original playbook UX */
+.matchup-switch{display:flex;align-items:center;justify-content:center;gap:7px;border:1px solid #4f7467;background:#28453c;color:#eecb84;padding:10px 12px;white-space:nowrap;font:800 12px 'Barlow Condensed',sans-serif;letter-spacing:.8px}
+.matchup-switch:hover{background:#426b56;border-color:#ebc482}
+.scorebug .team-emblem{font-size:11px;letter-spacing:-.3px;border-radius:3px;box-shadow:inset 0 -5px 0 #0003}
+.scorebug .team-name{min-width:30px;font-size:13px;color:#e2d3b0}
+.score-middle>span{white-space:nowrap}
+.play-selector.nfl-playbook{grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr))}
+.nfl-playbook .play-choice b{font-size:clamp(12px,1vw,15px);line-height:1}
+.nfl-playbook .play-choice{gap:6px}
+.nfl-playbook .route-icon{width:24px;height:32px;font-size:23px}
+.nfl-playbook .play-choice .play-index{display:block;top:3px;right:4px;font-size:8px}
+.coaching-identity{display:flex;flex-direction:column;gap:5px;border:1px solid #5c7768;background:#283f34;padding:10px 11px;margin:8px 0}
+.coaching-identity strong{font:900 20px 'Barlow Condensed',sans-serif;color:#efc981}
+.coaching-identity span{font:700 10px 'DM Mono',monospace;color:#c0d4c7}
+.coaching-identity small{font:500 11px/1.45 Outfit,sans-serif;color:#d1d4c7}
+/* Pregame lives in its own full-viewport overlay. Once the user starts, the field is entirely scroll-free. */
+.pregame-screen{position:fixed;inset:0;z-index:20;overflow-y:auto;background:#071311;color:#f3ead9;font-family:Outfit,system-ui,sans-serif;overscroll-behavior:contain;isolation:isolate}
+.pregame-backdrop{position:fixed;inset:0;z-index:-1;background:radial-gradient(ellipse 80% 68% at 73% 16%,#275344 0,#10221e 59%,#081411 100%);pointer-events:none}
+.pregame-backdrop:after{content:"";position:absolute;inset:0;opacity:.22;pointer-events:none;background-image:linear-gradient(90deg,transparent 97%,#aedec40d 98%),linear-gradient(0deg,transparent 97%,#aedec40c 98%);background-size:38px 38px;mask-image:linear-gradient(to bottom,#000 0%,transparent 90%)}
+.pregame-wrap{max-width:1470px;min-height:100%;padding:clamp(18px,2.8vw,42px);margin:0 auto;display:flex;flex-direction:column;gap:20px}
+.pregame-top{display:flex;justify-content:space-between;align-items:start;gap:20px}
+.pregame-brand{display:grid;grid-template-columns:40px 1fr;gap:3px 11px;align-items:center}
+.brand-spark{grid-row:1/3;display:grid;place-items:center;background:#e9b86d;color:#152b23;font:900 40px/.95 'Barlow Condensed',sans-serif;width:37px;height:41px;clip-path:polygon(40% 0,100% 0,57% 51%,98% 51%,25% 100%,41% 51%,0 51%)}
+.pregame-overline{color:#d7c092;font:700 10px 'DM Mono',monospace;letter-spacing:1.6px}
+.pregame-brand h1{font:900 clamp(36px,5vw,72px)/.85 'Barlow Condensed',sans-serif;letter-spacing:-.4px;margin:4px 0 0;text-shadow:4px 5px 0 #07130e}
+.pregame-brand h1 em{font-style:normal;color:#e9b768}
+.pregame-close{display:flex;align-items:center;gap:8px;border:1px solid #647e69;color:#e7d4a7;background:#1c3a31;padding:11px 15px;font:800 13px 'Barlow Condensed',sans-serif;letter-spacing:1px}
+.pregame-close:hover{background:#365747}
+.pregame-below{display:grid;grid-template-columns:minmax(380px,1fr) minmax(380px,1.15fr);gap:clamp(16px,2.6vw,40px);min-height:0;flex:1;align-items:stretch}
+.pregame-picks{border:1px solid #3e6053;padding:17px;background:linear-gradient(150deg,#162f2af0,#0d211cfa);box-shadow:0 15px 44px #0006;display:flex;flex-direction:column;min-height:0;max-height:715px}
+.pregame-tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:3px;background:#10221e;border:1px solid #345347}
+.pregame-tabs button{display:flex;justify-content:center;align-items:center;gap:8px;padding:13px 8px;border:0;background:#213c34;color:#b5c6b6;font:900 14px 'Barlow Condensed',sans-serif;letter-spacing:.55px}
+.pregame-tabs button.active{background:#e9be79;color:#183329}
+.pregame-tabs button:not(.active):hover{background:#395f4c}
+.menu-section-label{font:700 10px 'DM Mono',monospace;letter-spacing:1.8px;color:#b89a69;padding:21px 0 10px}
+.moments-list{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.moment-tile{text-align:left;border:1px solid #426053;border-left:3px solid #56765b;background:#1f3a32;color:#eee8d5;padding:15px;min-width:0;display:flex;flex-direction:column;gap:10px;transition:background .16s,border .16s;min-height:164px}
+.moment-tile:hover{background:#2b5142;border-color:#ccae75}.moment-tile.chosen{border:2px solid #eac182;border-left:5px solid #eac182;background:#3d4e3a;padding:14px}
+.moment-badges{display:flex;justify-content:space-between;gap:4px;color:#e4c38c;font:700 10px 'DM Mono',monospace;letter-spacing:.5px}
+.moment-badges small{color:#97b09e;font:600 9px 'DM Mono',monospace}
+.moment-tile strong{font:900 clamp(17px,1.8vw,27px)/.96 'Barlow Condensed',sans-serif;letter-spacing:.5px}
+.moment-tile p{margin:0;color:#b9c9b9;font:500 11px/1.4 Outfit,sans-serif}
+.moment-bottom{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;color:#ecc78b;font:600 9px 'DM Mono',monospace}
+.moment-bottom span{padding:4px 5px;background:#122b23}
+.pregame-preview{display:flex;flex-direction:column;min-width:0;background:linear-gradient(135deg,#e8d8b6,#f6ebd0 70%,#d0c09c);border:6px solid #a84c39;box-shadow:0 15px 55px #0009, 8px 9px 0 #070d0b;color:#1c342b;padding:clamp(17px,2.25vw,33px);gap:17px}
+.game-preview-top{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#857859;font:700 9px 'DM Mono',monospace}
+.label-pip{display:flex;align-items:center;gap:6px;font:800 11px 'DM Mono',monospace;letter-spacing:.6px;color:#af5a3e}
+.pregame-match{display:grid;grid-template-columns:1fr 55px 1fr;gap:12px;align-items:center;text-align:center;min-width:0;border-top:1px solid #baa98a;border-bottom:1px solid #baa98a;padding:19px 0}
+.pregame-club{display:flex;flex-direction:column;align-items:center;gap:8px;min-width:0}
+.pregame-shield{display:grid;place-items:center;border:4px solid;border-radius:9px;width:86px;height:84px;font:900 27px 'Barlow Condensed',sans-serif;letter-spacing:-1px;box-shadow:0 8px 0 #0002;text-shadow:1px 2px 0 #0003}
+.pregame-club strong{font:900 clamp(14px,1.65vw,22px)/1.04 'Barlow Condensed',sans-serif;letter-spacing:.1px}
+.pregame-club small{font:700 9px 'DM Mono',monospace;color:#91826a}
+.pregame-vs{font:900 30px 'Barlow Condensed',sans-serif;color:#b65b42}
+.pregame-situation h2{font:900 clamp(28px,3.5vw,44px)/.93 'Barlow Condensed',sans-serif;letter-spacing:.3px;margin:10px 0}
+.pregame-situation p{font:500 13px/1.55 Outfit,sans-serif;color:#706d5d;margin:0;max-width:480px}
+.situation-numbers{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:19px}
+.situation-numbers>div{display:flex;flex-direction:column;gap:5px;border-top:3px solid #bb6648;background:#dbc9a5;padding:10px 8px;min-width:0}
+.situation-numbers small{font:700 9px 'DM Mono',monospace;color:#866953}
+.situation-numbers b{font:900 clamp(19px,2.4vw,31px) 'Barlow Condensed',sans-serif;color:#233a30;white-space:nowrap}
+.pregame-playbook-hint{display:flex;align-items:center;gap:12px;border:1px solid #c7ae81;background:#e3d0ab;padding:12px}
+.pregame-playbook-hint>svg{color:#a45536;flex-shrink:0}
+.pregame-playbook-hint>div{display:flex;flex-direction:column;gap:4px}
+.pregame-playbook-hint b{font:900 17px 'Barlow Condensed',sans-serif}
+.pregame-playbook-hint small{font:500 11px Outfit,sans-serif;color:#716952}
+.pregame-start{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-height:61px;padding:12px 20px;background:#b44731;border:0;border-bottom:5px solid #743424;color:#fff4da;font:900 clamp(19px,2.35vw,29px) 'Barlow Condensed',sans-serif;letter-spacing:.6px;text-align:center}
+.pregame-start:hover{background:#d15f42}
+.pregame-disclaimer{font:500 10px/1.5 Outfit,sans-serif;color:#80755f;margin:0}
+.source-link{display:flex;gap:5px;align-items:center;color:#99533e;font:600 10px Outfit,sans-serif}
+.source-link svg{transform:rotate(180deg)}
+.team-side-buttons{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:14px 0}
+.team-side-buttons button{text-align:left;background:#254035;border:1px solid #527262;color:#d9e4d2;padding:12px;display:flex;flex-direction:column;gap:5px;min-width:0}
+.team-side-buttons button.active{border:2px solid #e5bd79;background:#43583f;padding:11px}
+.team-side-buttons span{font:700 10px 'DM Mono',monospace;color:#c5a77b}
+.team-side-buttons b{font:900 20px 'Barlow Condensed',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.club-search{display:flex;align-items:center;gap:9px;color:#b6c9bc;border:1px solid #547462;background:#142d25;padding:11px}
+.club-search input{color:#f2ead7;background:transparent;border:none;outline:0;flex:1;min-width:0;font:500 13px Outfit,sans-serif}
+.club-search input::placeholder{color:#7c9c8b}
+.team-menu-list{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px;overflow-y:auto;max-height:400px;padding-right:2px;scrollbar-color:#778c68 #203c32;scrollbar-width:thin}
+.team-menu-list button{display:flex;align-items:center;gap:8px;min-width:0;text-align:left;border:1px solid #3c5c4d;background:#213a32;color:#dfecdc;padding:8px}
+.team-menu-list button.picked{border:2px solid #e3bf80;background:#455c46;padding:7px}
+.team-menu-list button:hover{border-color:#e2c28c}
+.team-menu-list i{display:grid;place-items:center;width:36px;height:32px;flex-shrink:0;border:2px solid;font:900 13px 'Barlow Condensed',sans-serif;font-style:normal;color:#fff;text-shadow:0 1px 3px #0008}
+.team-menu-list button span{display:flex;flex-direction:column;gap:4px;min-width:0}
+.team-menu-list button b{font:800 14px/.98 'Barlow Condensed',sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.team-menu-list button small{color:#91a99c;font:600 9px 'DM Mono',monospace}
+@media(max-width:1200px){
+ .pregame-below{grid-template-columns:minmax(330px,1fr) minmax(330px,1fr);gap:16px}
+ .pregame-picks{padding:12px}.moment-tile{padding:11px;min-height:148px}
+ .pregame-preview{gap:12px;padding:18px}.pregame-match{padding:10px 0}
+ .nfl-playbook .play-choice b{font-size:12px}
+}
+@media(max-width:960px){
+ .pregame-below{grid-template-columns:1fr;gap:16px}.pregame-picks{max-height:none}
+ .pregame-preview{order:-1}.pregame-wrap{max-width:750px}
+ .pregame-situation p{max-width:none}.pregame-match{padding:12px 0}
+ .pregame-brand h1{font-size:48px}
+ .nfl-playbook .play-choice .route-icon{display:none}.nfl-playbook .play-choice{padding:8px 6px}
+}
+@media(max-width:650px){
+ .pregame-wrap{padding:13px;gap:13px}.pregame-top{align-items:start}
+ .pregame-brand{grid-template-columns:25px 1fr;gap:1px 6px}
+ .brand-spark{width:23px;height:30px;font-size:26px}
+ .pregame-overline{font-size:8px;letter-spacing:.7px}
+ .pregame-brand h1{font-size:35px}.pregame-close{font-size:0;padding:8px}.pregame-close svg{width:18px}
+ .pregame-preview{padding:12px;border-width:4px;gap:12px;box-shadow:4px 5px 0 #07130c}
+ .pregame-match{grid-template-columns:1fr 32px 1fr;gap:5px;padding:9px 0}
+ .pregame-shield{width:55px;height:54px;font-size:20px;border-width:3px;border-radius:5px}
+ .pregame-club strong{font-size:15px}.pregame-vs{font-size:20px}
+ .pregame-situation h2{font-size:30px}.pregame-situation p{font-size:11px}
+ .pregame-start{font-size:21px;min-height:52px}
+ .moments-list{grid-template-columns:1fr 1fr;gap:5px}.moment-tile{min-height:130px;padding:9px;gap:5px}
+ .moment-tile.chosen{padding:8px}.moment-badges{font-size:8px}.moment-badges small{font-size:8px}
+ .moment-tile strong{font-size:18px}.moment-tile p{font-size:10px}
+ .moment-bottom{font-size:8px}
+ .team-menu-list{max-height:370px}.team-menu-list button b{font-size:12px}
+ .game-preview-top{font-size:8px}.label-pip{font-size:9px}
+ .situation-numbers b{font-size:20px}
+ .matchup-switch{height:34px;min-width:29px;padding:7px}.matchup-switch span{display:none}
+ .nfl-playbook{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;grid-template-rows:repeat(2,minmax(0,1fr))!important;overflow:hidden!important}
+ .nfl-playbook .play-choice{min-width:0;flex:none;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px;padding:4px 2px}
+ .nfl-playbook .play-choice.picked{padding:3px 1px}
+ .nfl-playbook .route-icon{display:none!important}.nfl-playbook .play-choice b{font-size:12px;text-align:center;max-width:100%;white-space:normal}
+ .nfl-playbook .play-choice small{position:static;display:block;font-size:7px}
+ .nfl-playbook .play-choice .play-index{top:1px;right:2px;font-size:7px}
+ .scorebug .team-emblem{font-size:9px}.scorebug .team-name{font-size:10px;min-width:auto}
+}
+@media(max-width:380px){.pregame-brand h1{font-size:28px}.pregame-start{font-size:18px}.pregame-shield{width:43px;height:45px;font-size:17px}.moment-tile strong{font-size:15px}}
