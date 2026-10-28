@@ -1,5 +1,5 @@
 import {useMemo,useState} from 'react';
-import {ArrowRight,BookOpen,Check,Clock3,Crosshair,Flag,Play,Shield,TimerReset,Zap} from 'lucide-react';
+import {ArrowRight,BookOpen,Clock3,Crosshair,Play,Shield,TimerReset,Zap} from 'lucide-react';
 import {ROUTE_OPTIONS,routeVertices,type RouteBook,type RouteKind} from '../logic/spatial';
 import {FORMATIONS,PROTECTIONS,isEligible,type TacticalCall} from '../logic/tactics';
 import type {Point,ReceiverId} from '../logic/throwing';
