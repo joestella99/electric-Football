@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {newWorld,stepWorld,throwBall,routeAt,routeVertices,starterRoutes,actorPoint,closestDefender,resultFromWorld,finishFlight,predictLead} from '../src/logic/spatial.ts';
+import {newWorld,stepWorld,throwBall,routeAt,routeVertices,starterRoutes,actorPoint,closestDefender,resultFromWorld,finishFlight,predictLead,passDuration} from '../src/logic/spatial.ts';
 import {initialGame} from '../src/logic/drill.ts';
 
 test('routes have editable waypoints and generate motion in real space',()=>{
@@ -115,4 +115,34 @@ test('assisted throws target the actual moving player and do not mutate the live
  for(let i=0;i<200&&!outcome;i++)outcome=stepWorld(w,1/60);
  assert.ok(outcome);
  assert.equal(outcome.receiver===undefined || outcome.receiver===7,true);
+});
+
+test('one-tap bullet and touch releases have meaningfully different real flight times',()=>{
+ const bullet=newWorld(40,'SOFT ZONE','quick');
+ const touch=newWorld(40,'SOFT ZONE','quick');
+ const target=[-19,60];
+ assert.equal(throwBall(bullet,target,7,'bullet'),true);
+ assert.equal(throwBall(touch,target,7,'touch'),true);
+ assert.equal(bullet.flight.style,'bullet');
+ assert.equal(touch.flight.style,'touch');
+ assert.ok(bullet.flight.duration<touch.flight.duration);
+ assert.ok(passDuration(25,'bullet')<passDuration(25,'touch'));
+ let bulletDone=null,touchDone=null;
+ for(let i=0;i<180;i++){
+  if(!bulletDone)bulletDone=stepWorld(bullet,1/60);
+  if(!touchDone)touchDone=stepWorld(touch,1/60);
+  if(bulletDone&&touchDone)break;
+ }
+ assert.ok(bulletDone&&touchDone);
+ assert.ok(bullet.t<touch.t);
+});
+test('each pass trajectory uses its own consistent lead calculation without changing the live world',()=>{
+ const w=newWorld(42,'LOADED BOX','deep');
+ for(let i=0;i<35;i++)stepWorld(w,1/60);
+ const before=w.actors.map(a=>[a.x,a.z]);
+ const fast=predictLead(w,8,'bullet');
+ const high=predictLead(w,8,'touch');
+ assert.ok(fast.every(Number.isFinite));
+ assert.ok(high.every(Number.isFinite));
+ assert.deepEqual(before,w.actors.map(a=>[a.x,a.z]));
 });
