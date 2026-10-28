@@ -6,6 +6,7 @@ import { StadiumDiorama } from './Stadium';
 import { isEligible, type TacticalCall } from '../logic/tactics';
 import InstancedPlayers from './InstancedPlayers';
 import CoverageOverlay from './CoverageOverlay';
+import FieldTurf from './FieldTurf';
 import { actorPoint, closestDefender, newWorld, predictLead, routeVertices, stepWorld, throwBall as releaseSpatialBall, resultFromWorld, TARGETS, type RouteBook, type World } from '../logic/spatial';
 import type { GameState } from '../logic/drill';
 import type { Defense, PlayId, Result } from '../logic/drill';
@@ -96,12 +97,7 @@ function HashMarks(){
 }
 function Field({yard,toGo}:{yard:number;toGo:number}){
   return <group>
-    <mesh position={[0,.34,50]} rotation={[-Math.PI/2,0,0]}>
-      <planeGeometry args={[55,101]}/><meshStandardMaterial color="#275e49" roughness={.94}/>
-    </mesh>
-    {Array.from({length:10},(_,i)=><mesh key={i} position={[0,.348,5+i*10]} rotation={[-Math.PI/2,0,0]}>
-      <planeGeometry args={[54.8,10]}/><meshBasicMaterial color={i%2===0?'#306d52':'#285c45'}/>
-    </mesh>)}
+    <FieldTurf/>
     {[5,95].map((z,i)=><mesh key={z} position={[0,.37,z]} rotation={[-Math.PI/2,0,0]}>
       <planeGeometry args={[54.7,10]}/><meshBasicMaterial color={i?'#b04f3f':'#273e53'}/>
     </mesh>)}
@@ -114,6 +110,7 @@ function Field({yard,toGo}:{yard:number;toGo:number}){
     })}
     <HashMarks/>
     <Text position={[0,.43,4]} rotation={[-Math.PI/2,0,0]} fontSize={4} letterSpacing={.19} color="#e8dfc3">HOME</Text>
+    <Text position={[0,.47,50]} rotation={[-Math.PI/2,0,0]} fontSize={6.4} letterSpacing={.12} color="#d4ba83" fillOpacity={.22}>ELECTRIC</Text>
     <Text position={[0,.43,96]} rotation={[-Math.PI/2,0,Math.PI]} fontSize={4} letterSpacing={.19} color="#f2c9a6">AWAY</Text>
     <mesh position={[0,.54,clip(yard,1,99)]}><boxGeometry args={[54,.12,.29]}/><meshBasicMaterial color="#5ddaff" transparent opacity={.94}/></mesh>
     <mesh position={[0,.54,clip(yard+toGo,1,99)]}><boxGeometry args={[54,.12,.31]}/><meshBasicMaterial color="#f7d161" transparent opacity={.98}/></mesh>
