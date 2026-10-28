@@ -283,11 +283,14 @@ export function stepWorld(w:World,delta:number):SpatialOutcome|null{
 export function resultFromWorld(s:GameState,w:World,outcome:SpatialOutcome):Result{
  const elapsed=Math.max(1,Math.ceil(outcome.elapsed+(!s.clockRunning?0:3)));
  const seconds=Math.max(0,s.seconds-elapsed);
- const yard=clamp(s.yard+outcome.yards,1,100);
- const yards=yard-s.yard;
+ const rawSpot=clamp(s.yard+outcome.yards,1,100);
  const catchMade=outcome.kind==='catch';
  const secured=catchMade||outcome.kind==='rush';
- const touchdown=secured&&yard>=100;
+ // The diorama's front goal line is painted at field coordinate 95.
+ // Treat landing/running beyond that line as a score rather than an impossible 100+ catch.
+ const touchdown=secured&&rawSpot>=95;
+ const yard=touchdown?100:rawSpot;
+ const yards=yard-s.yard;
  const firstDown=secured&&yards>=s.toGo;
  const down=firstDown||touchdown?1:s.down+1;
  const toGo=firstDown?Math.max(1,Math.min(10,100-yard)):Math.max(1,s.toGo-yards);
