@@ -372,3 +372,14 @@
  .scorebug .team-emblem{font-size:9px}.scorebug .team-name{font-size:10px;min-width:auto}
 }
 @media(max-width:380px){.pregame-brand h1{font-size:28px}.pregame-start{font-size:18px}.pregame-shield{width:43px;height:45px;font-size:17px}.moment-tile strong{font-size:15px}}
+
+/* Always-visible play identity, not a tooltip that disappears on touchscreens. */
+.play-brief{position:absolute;z-index:3;right:clamp(12px,2vw,28px);bottom:70px;width:min(340px,35vw);border:1px solid #d7b97e;border-top:3px solid #f0c986;background:linear-gradient(125deg,rgba(22,44,36,.96),rgba(27,54,46,.92));padding:13px;box-shadow:0 8px 28px #0009;display:flex;align-items:center;gap:10px}
+.play-brief>div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.play-brief small{color:#a9c7af;font:700 8px 'DM Mono',monospace}
+.play-brief b{color:#f0cb81;font:900 22px/.95 'Barlow Condensed',sans-serif;letter-spacing:.6px}
+.play-brief span{color:#d0dbca;font:500 10px/1.38 Outfit,sans-serif}
+.play-brief button{flex-shrink:0;padding:8px;background:#d5b075;color:#24372c;border:0;font:800 11px 'Barlow Condensed',sans-serif}
+.play-brief button:hover{background:#f6db9f}
+@media(max-width:850px){.play-brief{right:9px;bottom:58px;width:min(310px,55vw);padding:9px}.play-brief b{font-size:18px}.play-brief span{font-size:9px}.play-brief button{font-size:9px}}
+@media(max-width:650px){.play-brief{left:10px;right:auto;bottom:54px;width:calc(100% - 20px);max-width:370px;gap:5px;padding:7px 9px}.play-brief b{font-size:15px}.play-brief small{font-size:7px}.play-brief span{font-size:9px}.play-brief button{display:none}}
