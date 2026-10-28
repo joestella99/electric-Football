@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowRight, ChevronDown, CircleHelp, Clock3, Crosshair, Eye, Flag, Fullscreen, Goal, Keyboard, RotateCcw, Shield, Target, TimerReset, Zap, Gauge, Volume2, VolumeX, SlidersHorizontal, X, ScanEye, ClipboardList } from 'lucide-react';
+import { ArrowRight, CircleHelp, Clock3, Crosshair, Eye, Flag, Fullscreen, Goal, Keyboard, RotateCcw, Shield, Target, TimerReset, Zap, Gauge, Volume2, VolumeX, SlidersHorizontal, X, ScanEye, ClipboardList } from 'lucide-react';
 import Board3D, { type Live, type Motion, type ThrowRequest } from './components/Board3D';
-import { SCENARIOS, PLAYS, fieldSpot, formatClock, initialGame, kickDistance, simulate, useTimeout, type GameState, type PlayId, type Result } from './logic/drill';
+import Pregame from './components/Pregame';
+import { HISTORICAL_CHALLENGES,TEAM_BY_ID,STYLE_LABEL,practiceGame,teamPlaybook,type TeamConcept } from './logic/nfl';
+import { fieldSpot, formatClock, initialGame, kickDistance, simulate, useTimeout, type GameState, type PlayId, type Result } from './logic/drill';
 import { RECEIVERS, passPlay, pressureLimit, type Point, type ReceiverId } from './logic/throwing';
 import { ROUTE_OPTIONS, starterRoutes, routeAt, type RouteKind, type RouteBook } from './logic/spatial';
 import { DEFAULT_CALL, FORMATIONS, PROTECTIONS, isEligible, presnapRead, coachingCue, type TacticalCall } from './logic/tactics';
@@ -10,11 +12,6 @@ import { playCue } from './logic/audio';
 
 type View = 'sideline' | 'coach';
 type Feed = { id: number; label: string; clock: number; gain: number; grade: string };
-const DRIVE_NAMES: Record<string,string> = {
-  'the-comeback':'THE COMEBACK',
-  'touchdown-or-bust':'TOUCHDOWN OR BUST',
-  'walk-off':'THE WALK-OFF'
-};
 const PASS_PROGRESSIONS:Record<string,ReceiverId[]>={
   quick:[7,10,1,9,8],sideline:[9,8,1,7,10],deep:[9,7,8,10,1],screen:[1,10,9,7,8]
 };
@@ -27,7 +24,12 @@ const ICON: Record<PlayId,string> = {
   quick:'↗',sideline:'⌝',deep:'↑',screen:'↘',inside:'⇧',outside:'↝',spike:'⏱',fieldgoal:'⌁'
 };
 function App() {
-  const [scenarioId,setScenarioId]=useState('the-comeback');
+  const [scenarioId,setScenarioId]=useState('lviii-final');
+  const [offenseId,setOffenseId]=useState('KC');
+  const [opponentId,setOpponentId]=useState('SF');
+  const [lobbyOpen,setLobbyOpen]=useState(true);
+  const [started,setStarted]=useState(false);
+  const [selectedConcept,setSelectedConcept]=useState('outsidezone');
   const [game,setGame]=useState<GameState>(()=>initialGame());
   const [play,setPlay]=useState<PlayId>('quick');
   const [routes,setRoutes]=useState<RouteBook>(()=>starterRoutes('quick'));
@@ -54,6 +56,9 @@ function App() {
   const sequence=useRef(0);
   const keyboardRef=useRef<(event:KeyboardEvent)=>void>(()=>{});
   const active=!!live||!!motion;
+  const ownTeam=TEAM_BY_ID[offenseId],opposingTeam=TEAM_BY_ID[opponentId];
+  const teamBook=teamPlaybook(offenseId);
+  const currentConcept=teamBook.find(c=>c.id===selectedConcept);
   const finished=game.status!=='playing';
   const pressure=pressureLimit(game.defense,call.protection);
   const read=presnapRead(game.defense);
@@ -68,16 +73,27 @@ function App() {
   const throwing=throwRequest!==null;
   const selectedName=RECEIVERS.find(r=>r.id===receiver)?.label??'HARRIS';
 
-  const reset=useCallback((id=scenarioId)=>{
-    const scenario=SCENARIOS.find(s=>s.id===id)??SCENARIOS[0];
-    const fresh=initialGame(scenario);
-    setScenarioId(scenario.id);setGame(fresh);setPlay('quick');setReceiver(7);
-    setRoutes(starterRoutes('quick'));setDrawing(null);setThrowRequest(null);setCoverage({});setRouteEditor(7);
-    setCall({...DEFAULT_CALL});setTacticsOpen(false);
-    setAim([routeAt(7,starterRoutes('quick')[7],DEFAULT_CALL.formation,2)[0],fresh.yard+routeAt(7,starterRoutes('quick')[7],DEFAULT_CALL.formation,2)[1]]);setAutoLead(true);
+  const setupDrive=(fresh:GameState,teamId:string,opponent:string,id:string)=>{
+    const concept=teamPlaybook(teamId)[0];
+    setOffenseId(teamId);setOpponentId(opponent);setScenarioId(id);
+    setGame({...fresh});setPlay(concept.play);setReceiver(7);setSelectedConcept(concept.id);
+    setCall({formation:concept.formation,protection:concept.protection});
+    setRoutes(concept.routes);setDrawing(null);setThrowRequest(null);setCoverage({});setRouteEditor(7);
+    setTacticsOpen(false);setLobbyOpen(false);setStarted(true);
+    const p=routeAt(7,concept.routes[7],concept.formation,2);
+    setAim([p[0],Math.max(1,Math.min(99,fresh.yard+p[1]))]);setAutoLead(true);
     setLive(null);setMotion(null);setElapsed(0);setLast(null);setFeed([]);
     sequence.current+=1;
-  },[scenarioId]);
+  };
+  const startHistorical=(id:string)=>{
+    const s=HISTORICAL_CHALLENGES.find(v=>v.id===id)??HISTORICAL_CHALLENGES[0];
+    setupDrive(s.initial,s.offense,s.opponent,s.id);
+  };
+  const startPractice=(teamId:string,opponent:string)=>setupDrive(practiceGame(teamId,opponent),teamId,opponent,'practice');
+  const reset=()=>{
+    if(scenarioId==='practice')startPractice(offenseId,opponentId);
+    else startHistorical(scenarioId);
+  };
 
   const completePlay=useCallback((result:Result)=>{
     const cue=result.description.startsWith('TOUCHDOWN')?'touchdown':result.turnover?'interception':(result.play==='inside'||result.play==='outside')?'run':result.description.includes('SACKED')?'sack':result.complete?'catch':'incomplete';
@@ -127,9 +143,17 @@ function App() {
       return {...prev,[drawing]:{kind:'custom',points:[...prevPoints.slice(-4),[point[0],Math.max(0,Math.min(72,point[1]-game.yard))]]}};
     });
   };
-  const changePlay=(id:PlayId)=>{
+  const changePlay=(id:string)=>{
     if(active||finished)return;
-    setPlay(id);setRoutes(starterRoutes(id));setDrawing(null);setReceiver(7);setAim([routeAt(7,starterRoutes(id)[7],call.formation,2)[0],game.yard+routeAt(7,starterRoutes(id)[7],call.formation,2)[1]]);setAutoLead(true);
+    const concept=teamBook.find(p=>p.id===id);
+    if(!concept)return;
+    setSelectedConcept(concept.id);
+    setPlay(concept.play);
+    setRoutes(concept.routes);setDrawing(null);setReceiver(7);
+    setCall({formation:concept.formation,protection:concept.protection});
+    const point=routeAt(7,concept.routes[7],concept.formation,2);
+    setAim([point[0],Math.max(1,Math.min(99,game.yard+point[1]))]);
+    setAutoLead(true);
   };
   const special=(id:'spike'|'fieldgoal')=>{
     if(active||finished)return;
@@ -152,7 +176,7 @@ function App() {
 
   // Real late-game urgency: a running clock continues while you choose your next play.
   useEffect(()=>{
-    if(!game.clockRunning||active||finished||help)return;
+    if(!game.clockRunning||active||finished||help||lobbyOpen)return;
     const handle=window.setInterval(()=>{
       setGame(old=>{
         if(!old.clockRunning||old.status!=='playing')return old;
@@ -161,14 +185,14 @@ function App() {
       });
     },1000);
     return ()=>window.clearInterval(handle);
-  },[game.clockRunning,active,finished,help]);
+  },[game.clockRunning,active,finished,help,lobbyOpen]);
 
   useEffect(()=>{
     const listener=(event:KeyboardEvent)=>{
       const element=event.target;
       if(element instanceof HTMLInputElement||element instanceof HTMLSelectElement||element instanceof HTMLTextAreaElement)return;
       if(event.code==='Escape'){setHelp(false);return;}
-      if(help)return;
+      if(help||lobbyOpen)return;
       if(event.code==='Space'){
         event.preventDefault();
         if(event.repeat)return;
@@ -176,10 +200,10 @@ function App() {
         else if(!active&&!finished)snap();
       }
       const digit=event.code.startsWith('Digit')?Number(event.code.slice(-1)):0;
-      if(digit>=1&&digit<=6){
+      if(digit>=1&&digit<=8){
         event.preventDefault();
         if(live&&digit<=5 && isEligible(RECEIVERS[digit-1].id,call))choose(RECEIVERS[digit-1].id);
-        else if(!active&&!finished&&digit<=6)changePlay(PLAYS[digit-1].id);
+        else if(!active&&!finished&&digit<=8&&teamBook[digit-1])changePlay(teamBook[digit-1].id);
       }
       if(event.code==='KeyV')setView(v=>v==='sideline'?'coach':'sideline');
       if(event.code==='KeyC'&&!active)setTacticsOpen(v=>!v);
@@ -197,14 +221,12 @@ function App() {
     <header className="topbar">
       <div className="wordmark"><span className="bolt">ϟ</span><span>ELECTRIC<strong>FOOTBALL</strong></span><i>ARCADE</i></div>
       <div className="scorebug">
-        <div className="team-score"><span className="team-emblem home">H</span><span className="team-name">HOME</span><b>{game.ours}</b></div>
-        <div className="score-middle"><span>4TH QUARTER</span><strong className={remaining<31?'critical':''}>{formatClock(remaining)}</strong></div>
-        <div className="team-score away-score"><b>{game.theirs}</b><span className="team-name">AWAY</span><span className="team-emblem away">A</span></div>
+        <div className="team-score"><span className="team-emblem home" style={{background:ownTeam.primary,borderColor:ownTeam.secondary,color:'#fff'}}>{ownTeam.abbr}</span><span className="team-name">{ownTeam.abbr}</span><b>{game.ours}</b></div>
+        <div className="score-middle"><span>{scenarioId==='practice'?'4TH QUARTER':HISTORICAL_CHALLENGES.find(s=>s.id===scenarioId)?.quarter+' · HISTORIC'}</span><strong className={remaining<31?'critical':''}>{formatClock(remaining)}</strong></div>
+        <div className="team-score away-score"><b>{game.theirs}</b><span className="team-name">{opposingTeam.abbr}</span><span className="team-emblem away" style={{background:opposingTeam.primary,borderColor:opposingTeam.secondary,color:'#fff'}}>{opposingTeam.abbr}</span></div>
       </div>
       <div className="toolbar">
-        <label className="scenario-select"><span>SCENARIO</span><select value={scenarioId} disabled={active} onChange={e=>reset(e.target.value)}>
-          {SCENARIOS.map(s=><option key={s.id} value={s.id}>{DRIVE_NAMES[s.id]}</option>)}
-        </select><ChevronDown size={13}/></label>
+        <button className="matchup-switch" onClick={()=>setLobbyOpen(true)} title="Choose NFL teams or historical challenge"><Shield size={15}/><span>CHANGE MATCHUP</span></button>
         <button className="quality-toggle" onClick={()=>setQuality(q=>q==='performance'?'balanced':q==='balanced'?'high':'performance')} title="Switch between performance, balanced and high graphics settings" aria-label={'Graphics: '+quality+', '+(fps??'--')+' FPS'}><Gauge size={15}/><span>{quality.toUpperCase()} · {fps??'--'} FPS</span></button>
         <button className="icon-button" aria-label={soundOn?'Mute game audio':'Enable game audio'} title={soundOn?'Mute sounds':'Enable sounds'} onClick={()=>setSoundOn(v=>!v)}>{soundOn?<Volume2 size={18}/>:<VolumeX size={18}/>}</button>
         <button className="icon-button" aria-label="How to play" title="How to play" onClick={()=>setHelp(true)}><CircleHelp size={19}/></button>
@@ -212,7 +234,7 @@ function App() {
       </div>
     </header>
     <div className="arena">
-      <Board3D yard={game.yard} toGo={game.toGo} defense={game.defense} play={play} view={view} call={call} game={game}
+      <Board3D offenseColor={ownTeam.primary} opponentColor={opposingTeam.primary} yard={game.yard} toGo={game.toGo} defense={game.defense} play={play} view={view} call={call} game={game}
         live={live} motion={motion} aim={aim} receiver={receiver} routes={routes} drawTarget={drawing} throwRequest={throwRequest}
         onSelect={choose} onAim={point=>{if(!throwing){setAutoLead(false);setAim(point);}}}
         onDrawPoint={drawPoint} onThrow={throwNow} onAutoThrow={id=>throwNow(aim,id,true)} onLead={setAim} assistAim={autoLead}
@@ -231,10 +253,9 @@ function App() {
       </div>
 
       {tacticsOpen&&!active&&!finished&&<div className="tactics-sheet">
-        <div className="sheet-top"><div><span>OFFENSIVE CONTROL / PRE-SNAP</span><h3>COACH'S BOARD</h3></div><button onClick={()=>setTacticsOpen(false)} aria-label="Close tactics"><X size={20}/></button></div>
+        <div className="sheet-top"><div><span>{ownTeam.name.toUpperCase()} / OFFENSE</span><h3>COACH'S BOARD</h3></div><button onClick={()=>setTacticsOpen(false)} aria-label="Close tactics"><X size={20}/></button></div>
         <p className="sheet-cue">{read.shell} · {read.cue}</p>
-        <label>GAME SCENARIO</label>
-        <select className="sheet-scenario" value={scenarioId} onChange={e=>reset(e.target.value)} aria-label="Select game scenario">{SCENARIOS.map(s=><option value={s.id} key={s.id}>{DRIVE_NAMES[s.id]}</option>)}</select>
+        <div className="coaching-identity"><strong>{ownTeam.name}</strong><span>{STYLE_LABEL[ownTeam.style]}</span><small>{currentConcept?.tip??"Read the defense and call the right play."}</small></div>
         <label>OFFENSIVE FORMATION</label>
         <div className="scheme-grid">{FORMATIONS.map(option=><button key={option.id} className={call.formation===option.id?'active':''} onClick={()=>chooseFormation(option.id)}><strong>{option.name}</strong><small>{option.detail}</small></button>)}</div>
         <label>PASS PROTECTION</label>
@@ -268,7 +289,7 @@ function App() {
       <div className="deck-meta">
         <div className="label-tiny"><span className="live-led"/> {live?'QUARTERBACK MODE':active?'PLAYING':'OFFENSIVE COORDINATOR'}</div>
         <h2>{runInProgress?'FOLLOW THE BLOCKS.':live?'READ THE COVERAGE.':finished?'THE FINAL DRIVE.':motion?'WATCH THE PLAY.':'CALL YOUR SHOT.'}</h2>
-        <p>{runInProgress?'Real pursuit and tackle detection—no yardage roll.':live?'Progress through the reads, then hit the window.':motion?'Players are in motion.':finished?'Run it back or try a different scenario.':call.formation.toUpperCase()+' / '+call.protection.toUpperCase()+' PROTECTION'}</p>
+        <p>{runInProgress?'Real pursuit and tackle detection—no yardage roll.':live?'Progress through the reads, then hit the window.':motion?'Players are in motion.':finished?'Run it back or try a different scenario.':STYLE_LABEL[ownTeam.style]+' · '+(currentConcept?.name??'CHOOSE A PLAY')}</p>
         {!live&&!active&&!finished&&<button className="coach-dock-button" onClick={()=>setTacticsOpen(true)}><SlidersHorizontal size={15}/> CHANGE SCHEME <span>C</span></button>}
       </div>
 
@@ -287,10 +308,10 @@ function App() {
           <span className="action-foot">{throwing?'BALL RELEASED':suggested.map((id,i)=>`${i+1}. ${RECEIVERS.find(r=>r.id===id)?.label}`).join(' → ')}</span>
         </div>
       </> : <>
-        <div className="play-selector">
-          {PLAYS.map((p,i)=><button key={p.id} className={'play-choice '+(play===p.id?'picked':'')} disabled={active||finished}
+        <div className="play-selector nfl-playbook">
+          {teamBook.map((p,i)=><button key={p.id} title={p.tip} className={'play-choice '+(selectedConcept===p.id?'picked':'')} disabled={active||finished}
             onClick={()=>changePlay(p.id)}>
-            <span className="play-index">{i+1}</span><span className="route-icon">{ICON[p.id]}</span><b>{p.name}</b><small>{passPlay(p.id)?'PASS':'RUN'}</small>
+            <span className="play-index">{i+1}</span><span className="route-icon">{ICON[p.play]}</span><b>{p.name}</b><small>{p.family}</small>
           </button>)}
         </div>
         <div className="action-stack">
@@ -305,18 +326,19 @@ function App() {
       </>}
     </section>
 
-    <footer className="micro-footer"><span>MADE FOR THE LOVE OF THE GAME · A FICTIONAL, INDEPENDENT TABLETOP FOOTBALL PROTOTYPE</span><button onClick={()=>reset()}><RotateCcw size={12}/> RESET DRIVE</button><span>NOT AFFILIATED WITH TUDOR GAMES OR THE NFL</span></footer>
+    <footer className="micro-footer"><span>32 NFL TEAMS · ORIGINAL TEAM-STYLE PLAYBOOKS · HISTORICAL SCENARIOS</span><button onClick={()=>reset()}><RotateCcw size={12}/> RESET DRIVE</button><span>UNOFFICIAL · NOT AFFILIATED WITH THE NFL OR ITS CLUBS</span></footer>
 
+    {lobbyOpen&&<Pregame canClose={started} onClose={()=>setLobbyOpen(false)} onChallenge={startHistorical} onExhibition={startPractice}/>}
     {help&&<div className="modal-scrim" onClick={()=>setHelp(false)} role="presentation">
       <div className="help-modal" role="dialog" aria-modal="true" aria-label="How to play" onClick={e=>e.stopPropagation()}>
         <button className="close-help" onClick={()=>setHelp(false)} aria-label="Close">×</button>
         <span className="help-kicker">FIELD MANUAL / NO. 001</span><h2>YOU'RE THE<br/><em>QUARTERBACK.</em></h2>
         <p>One drive to win. Call your plays, read the defense, and make every throw yourself.</p>
-        <div className="help-steps"><div><b>01</b><span><strong>PICK A PLAY</strong><small>Six run and pass concepts. Choose based on down and defensive look.</small></span></div>
+        <div className="help-steps"><div><b>01</b><span><strong>PICK A PLAY</strong><small>Team-flavored football concepts. Choose based on down and defensive look.</small></span></div>
           <div><b>02</b><span><strong>SNAP — SPACE</strong><small>Players come to life. Passing plays put you in QB control.</small></span></div>
           <div><b>03</b><span><strong>THROW — CLICK OR SPACE</strong><small>Choose receivers 1–5. Click exactly where to throw, or press Space to lead the selected target. Timing matters.</small></span></div>
           <div><b>04</b><span><strong>BEAT THE CLOCK</strong><small>The clock keeps running after in-bounds catches. Timeouts, spikes and kicks matter.</small></span></div></div>
-        <div className="help-keys"><Keyboard size={17}/> KEYS: 1–6 PLAYS · 1–5 RECEIVERS · C COACH'S BOARD · V CAMERA · SPACE SNAP/THROW</div>
+        <div className="help-keys"><Keyboard size={17}/> KEYS: 1–8 PLAYS · 1–5 RECEIVERS · C COACH'S BOARD · V CAMERA · SPACE SNAP/THROW</div>
         <button className="help-start" onClick={()=>setHelp(false)}>GOT IT. LET'S PLAY <ArrowRight size={19}/></button>
       </div>
     </div>}
