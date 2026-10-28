@@ -8,13 +8,13 @@ import InstancedPlayers from './InstancedPlayers';
 import type {HistoricalPersonnel} from '../logic/nflRoster';
 import CoverageOverlay from './CoverageOverlay';
 import FieldTurf from './FieldTurf';
-import { actorPoint, closestDefender, newWorld, predictLead, routeVertices, stepWorld, throwBall as releaseSpatialBall, resultFromWorld, TARGETS, type RouteBook, type World } from '../logic/spatial';
+import { actorPoint, closestDefender, newWorld, predictLead, routeVertices, stepWorld, throwBall as releaseSpatialBall, resultFromWorld, TARGETS, type RouteBook, type World, type PassStyle } from '../logic/spatial';
 import type { GameState } from '../logic/drill';
 import type { Defense, PlayId, Result } from '../logic/drill';
 import { passPlay, pressureLimit, RECEIVERS, type Point, type ReceiverId } from '../logic/throwing';
 
 export type Live = { id: number; play: PlayId };
-export type ThrowRequest = { id: number; point: Point; receiver: ReceiverId; assisted?: boolean };
+export type ThrowRequest = { id: number; point: Point; receiver: ReceiverId; assisted?: boolean; style?:PassStyle };
 export type Motion = { id: number; result: Result; startYard: number; aim?: Point; releaseAt?: number };
 type View = 'sideline' | 'coach';
 type Props = {
@@ -24,6 +24,7 @@ type Props = {
   onAutoThrow:(receiver:ReceiverId)=>void;
   onLead:(point:Point)=>void; assistAim:boolean;
   quality:'performance'|'balanced'|'high'; onFps:(fps:number)=>void; offenseColor:string;opponentColor:string;personnel:HistoricalPersonnel|null;
+  buttonPassing?:boolean;
   onCoverage:(read:Record<number,number>)=>void;
   live: Live | null; motion: Motion | null; aim: Point; receiver: ReceiverId;
   onAim: (point: Point) => void; onThrow: (point: Point, id?: ReceiverId) => void;
@@ -53,13 +54,13 @@ function CameraRig({yard,view,world}:{yard:number;view:View;world:World|null}) {
     }else{
       // Keep the throwing camera stable until the ball leaves the QB's hand.
       const side=mobile?0:8;
-      const z=point.current.z-(mobile?43:35);
-      pose.current.set(side,mobile?69:54,z);
+      const z=point.current.z-(mobile?32:29);
+      pose.current.set(side,mobile?53:43,z);
     }
     camera.position.lerp(pose.current,ease);
     camera.lookAt(point.current);
     if(camera instanceof THREE.PerspectiveCamera){
-      const desired=mobile?51:45;
+      const desired=mobile?52:46;
       if(camera.fov!==desired){camera.fov=desired;camera.updateProjectionMatrix();}
     }
   });
@@ -206,7 +207,7 @@ function BallTrail({world}:{world:World}){
     const p=flight.elapsed/flight.duration;
     for(let i=0;i<ref.current.children.length;i++){
       const fraction=Math.max(0,p-(i+1)*.035);
-      const arc=Math.sin(Math.PI*fraction)*Math.min(8.5,2.5+Math.hypot(flight.target[0]-flight.from[0],flight.target[1]-flight.from[1])*.15);
+      const arc=Math.sin(Math.PI*fraction)*Math.min(flight.style==='touch'?11.5:5.4,1.8+Math.hypot(flight.target[0]-flight.from[0],flight.target[1]-flight.from[1])*(flight.style==='touch'?.18:.09));
       ref.current.children[i].position.set(
         flight.from[0]+(flight.target[0]-flight.from[0])*fraction,
         2.5+arc,
@@ -226,7 +227,7 @@ function SpatialClock({world,request,game,onTick,onCoverage,onSpatialResult,onLe
   useEffect(()=>{reported.current=false;resolvedHold.current=0;lastTick.current=-1;lastCoverage.current=-1;elapsed.current=0;},[world,elapsed]);
   useEffect(()=>{
     if(!request||world.phase!=='live')return;
-    releaseSpatialBall(world,request.assisted?predictLead(world,request.receiver):request.point,request.receiver);
+    releaseSpatialBall(world,request.assisted?predictLead(world,request.receiver,request.style):request.point,request.receiver,request.style);
   },[request?.id,world]);
   useFrame((_,dt)=>{
     if(reported.current)return;
@@ -237,7 +238,7 @@ function SpatialClock({world,request,game,onTick,onCoverage,onSpatialResult,onLe
     elapsed.current=world.t;
     const ticks=Math.floor(world.t*5);
     if(ticks!==lastTick.current){lastTick.current=ticks;onTick(world.t);}
-    const coverageTick=Math.floor(world.t*2);
+    const coverageTick=Math.floor(world.t*6);
     if(coverageTick!==lastCoverage.current){
       lastCoverage.current=coverageTick;
       const read:Record<number,number>={};
@@ -340,14 +341,14 @@ function Scene(props:Props){
       <SpatialBall world={world}/>
       <BallTrail world={world}/>
       <CatchFlash world={world}/>
-      {passPlay(play)&&TARGETS.map(id=><SpatialBeacon key={id} world={world} id={id} selected={id===receiver} onAutoThrow={onAutoThrow} personnel={personnel}/>)}
+      {!props.buttonPassing&&passPlay(play)&&TARGETS.map(id=><SpatialBeacon key={id} world={world} id={id} selected={id===receiver} onAutoThrow={onAutoThrow} personnel={personnel}/>)}
       <Target aim={aim} active={passPlay(play)&&world.phase==='live'}/>
     </> : <>
       <Clock live={null} motion={motion} defense={defense} protection={call.protection} elapsed={elapsed} progress={progress} onTick={onTick} onSack={()=>{}} onDone={onDone}/>
       <InstancedPlayers world={previewWorld} active={false} motion={motion} progress={progress} selected={receiver} offenseColor={offenseColor} opponentColor={opponentColor}/>
       <Ball yard={displayYard} motion={motion} progress={progress}/>
     </>}
-    {(drawTarget!==null&&!live&&!motion||!!world&&passPlay(play)&&world.phase==='live') &&
+    {(drawTarget!==null&&!live&&!motion||!props.buttonPassing&&!!world&&passPlay(play)&&world.phase==='live') &&
       <mesh rotation={[-Math.PI/2,0,0]} position={[0,1.2,50]}
         onPointerMove={e=>{
           if(!world||world.phase!=='live')return;
