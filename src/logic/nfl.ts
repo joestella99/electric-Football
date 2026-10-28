@@ -34,7 +34,7 @@ export function practiceGame(teamId:string,opponentId:string):GameState{
  if(!TEAM_BY_ID[teamId]||!TEAM_BY_ID[opponentId]||teamId===opponentId)throw new Error('Choose two distinct clubs');
  return game(106,32,20,23,'LOADED BOX');
 }
-export type TeamConcept={id:string;name:string;callout:string;family:'PASS'|'RUN';play:PlayId;formation:Formation;protection:Protection;routes:RouteBook;tip:string};
+export type TeamConcept={id:string;name:string;callout:string;family:'PASS'|'RUN'|'RPO'|'TRICK';play:PlayId;formation:Formation;protection:Protection;routes:RouteBook;tip:string};
 type Spec=[string,string,PlayId,Formation,Protection,RouteKind[],string];
 const templates:Spec[]=[
  ['stick','STICK / FLAT','quick','spread','base',['slant','go','curl','out','flat'],'Read the flat defender. Throw stick if the corner widens.'],
@@ -52,7 +52,18 @@ const templates:Spec[]=[
  ['pashot','PLAY ACTION SHOT','deep','bunch','max',['go','post','corner','drag','flat'],'Sell the run then break behind the safeties.'],
  ['levels','LEVELS','sideline','spread','slide',['in','out','corner','drag','flat'],'Read the shallow and intermediate crossers.'],
  ['drive','DRIVE','quick','bunch','base',['slant','go','in','drag','flat'],'Shallow cross pulls coverage from the dig.'],
- ['slotfade','SLOT FADE','deep','trips','max',['post','go','flat','go','wheel'],'Attack the slot mismatch vertically.']
+ ['slotfade','SLOT FADE','deep','trips','max',['post','go','flat','go','wheel'],'Attack the slot mismatch vertically.'],
+ ['stretchleft','OUTSIDE LEFT','outside','spread','slide',['go','go','out','drag','flat'],'Stretch left: track the edge and cut vertically once the front flows.'],
+ ['stretchright','OUTSIDE RIGHT','outside','trips','slide',['go','go','out','drag','flat'],'Stretch right: force pursuit to outrun its leverage.'],
+ ['offtackleleft','OFF TACKLE LEFT','inside','spread','max',['slant','go','curl','drag','flat'],'Attack the left C gap behind a down block.'],
+ ['offtackleright','OFF TACKLE RIGHT','inside','trips','max',['slant','go','curl','drag','flat'],'Run behind the strong-side tackle.'],
+ ['qbsneak','QB SNEAK','inside','bunch','max',['slant','go','curl','drag','flat'],'Immediate downhill quarterback surge. Best in short yardage.'],
+ ['rpoglance','RPO GLANCE','quick','spread','base',['post','go','slant','drag','flat'],'Read the conflict linebacker. Hand it off or pull and hit the glance route.'],
+ ['rpobubble','RPO BUBBLE','screen','trips','base',['slant','go','flat','out','flat'],'Read the overhang defender. Give inside or throw the bubble outside.'],
+ ['rpostick','RPO STICK','quick','bunch','base',['curl','go','slant','out','flat'],'Run-pass option isolates the flat defender.'],
+ ['fleaflicker','FLEA FLICKER','deep','bunch','max',['go','post','corner','drag','flat'],'Delay the deep routes after a backfield exchange; it is a high-risk shot.'],
+ ['reverse','JET REVERSE','outside','trips','slide',['go','go','out','drag','flat'],'Get across the formation and attack the opposite edge.'],
+ ['directsnap','DIRECT SNAP','inside','bunch','max',['slant','go','curl','drag','flat'],'The back takes the direct snap behind a packed front.']
 ];
 const schemes:Record<TeamStyle,string[]>={
  'west-coast':['stick','mesh','spacing','flood','drive','levels','insidezone','rbscreen'],
@@ -63,10 +74,16 @@ const schemes:Record<TeamStyle,string[]>={
 };
 export function teamPlaybook(teamId:string):TeamConcept[]{
  const team=TEAM_BY_ID[teamId]??TEAM_BY_ID.PHI;
- return schemes[team.style].map((id,i)=>{
+ // 27 playable calls, with each franchise's preferred eight moved to the top.
+ const preferred=schemes[team.style];
+ const ids=[...new Set([...preferred,...templates.map(t=>t[0])])];
+ return ids.map((id,i)=>{
   const s=templates.find(t=>t[0]===id)!;
   const [nameId,name,play,formation,protection,kinds,tip]=s;
-  return {id:nameId,name,callout:i<3?'FEATURED':'SITUATIONAL',family:play==='inside'||play==='outside'?'RUN':'PASS',
-   play,formation,protection,routes:{7:{kind:kinds[0]},8:{kind:kinds[1]},9:{kind:kinds[2]},10:{kind:kinds[3]},1:{kind:kinds[4]}},tip};
+  const family:TeamConcept['family']=id.startsWith('rpo')?'RPO':
+   ['fleaflicker','reverse','directsnap'].includes(id)?'TRICK':
+   play==='inside'||play==='outside'?'RUN':'PASS';
+  return {id:nameId,name,callout:i<8?'TEAM FAVORITE':'PLAYBOOK',family,play,formation,protection,
+    routes:{7:{kind:kinds[0]},8:{kind:kinds[1]},9:{kind:kinds[2]},10:{kind:kinds[3]},1:{kind:kinds[4]}},tip};
  });
 }
