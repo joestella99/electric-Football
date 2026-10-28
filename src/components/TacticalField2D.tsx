@@ -1,6 +1,7 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {newWorld,stepWorld,throwBall,predictLead,resultFromWorld,closestDefender,actorPoint,routeVertices} from '../logic/spatial';
 import {isEligible} from '../logic/tactics';
+import {passingButtonFor,passPlay} from '../logic/throwing';
 import type {Live,ThrowRequest} from './Board3D';
 import type {GameState,Result,PlayId} from '../logic/drill';
 import type {TacticalCall} from '../logic/tactics';
@@ -100,10 +101,12 @@ export default function TacticalField2D({game,play,call,routes,live,request,onTi
     })}
     {candidates.map(actor=>{
      const y=toY(actor.z);if(y< -3||y>103)return null;
+     const key=passPlay(play)&&isEligible(actor.id,call)?passingButtonFor(actor.id):null;
      return <div key={actor.id} className={'tactical-field-figure '+(actor.side==='offense'?'offense':'defense')+(selected===actor.id?' throwing':'')}
        title={actor.role+' #'+actorName(actor,personnel)}
        style={{left:toX(actor.x)+'%',bottom:y+'%',backgroundColor:actor.side==='offense'?offenseColor:opponentColor}}>
-       <span className="tactical-jersey-number">{actorName(actor,personnel)}</span>
+       {key!==null&&<span className="tactical-pass-key" aria-label={'Press '+key+' to throw'}>{key}</span>}
+       <span className="tactical-jersey-number">#{actorName(actor,personnel)}</span>
        <span className="tactical-player-helmet"/>
      </div>;
     })}
@@ -111,6 +114,6 @@ export default function TacticalField2D({game,play,call,routes,live,request,onTi
     <div className="tactical-field-label">ELECTRIC FOOTBALL · ALL-22</div>
    </div>
   </div>
-  <div className="tactical-field-caption"><b>{preview?'PLAYBOOK PREVIEW':live?'LIVE FIELD':'PRE-SNAP FORMATION'}</b><span>{preview?'Choose a concept, then break the huddle.':live?'PRESS A RECEIVER BUTTON TO THROW':'Tap SNAP to begin the play.'}</span></div>
+  <div className="tactical-field-caption"><b>{preview?'PLAYBOOK PREVIEW':live?'LIVE FIELD':'PRE-SNAP FORMATION'}</b><span>{preview?'Set the play to inspect the defense.':live?'PRESS 1–5 TO THROW':'Read the defense, audible if needed, then snap.'}</span></div>
  </div>;
 }
