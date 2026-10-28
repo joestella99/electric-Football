@@ -222,3 +222,25 @@
 .quality-toggle:focus-visible{outline:2px solid #edc67c}
 @media(max-width:1100px){.quality-toggle{padding:7px;font-size:9px}.quality-toggle span{display:none}}
 @media(max-width:650px){.quality-toggle{height:34px;min-height:34px;width:29px;padding:0}.quality-toggle svg{width:16px;height:16px}}
+
+/* V3 — Defensive identification, live rush control and cinematic field information. */
+.coverage-coach-strip{position:absolute;left:clamp(12px,2.1vw,32px);top:95px;z-index:3;max-width:min(330px,30vw);padding:11px 15px 12px;border:1px solid #60878a;border-left:4px solid #95bfd2;background:linear-gradient(130deg,rgba(19,39,43,.95),rgba(24,47,43,.89));color:#d9ede7;display:flex;flex-direction:column;gap:4px;box-shadow:0 6px 26px #020d0ecc;pointer-events:none;animation:slidein .26s ease-out}
+.coverage-coach-strip>b{font:900 23px/1 'Barlow Condensed',sans-serif;letter-spacing:1.15px;color:#b9ddec}
+.coverage-coach-strip>span{font:500 11px/1.4 Outfit,sans-serif;color:#c3d4cc}
+.coverage-coach-strip>small{font:700 9px/1.35 'DM Mono',monospace;color:#e6c28b;letter-spacing:.15px}
+.run-live{grid-column:2/4;background:linear-gradient(120deg,#1c3732,#2f5246);border:1px solid #b39b68;display:flex;align-items:center;justify-content:space-between;padding:18px 27px;gap:20px;min-width:0}
+.run-live-label{display:flex;align-items:center;gap:11px;color:#f2cf8d;min-width:0}
+.run-live-label strong{font:900 clamp(23px,3vw,39px)/.95 'Barlow Condensed',sans-serif;letter-spacing:.5px;white-space:nowrap}
+.run-live-label span{color:#b9d6c7;font:700 10px 'DM Mono',monospace;line-height:1.45}
+.run-live-bands{display:flex;align-items:flex-end;flex-direction:column;gap:13px;white-space:nowrap}
+.run-live-bands span{background:#456659;color:#eee1bb;padding:8px 13px;font:800 11px 'DM Mono',monospace;letter-spacing:.25px}
+.run-live-bands span:last-child{background:#dfb970;color:#213b33}
+@media(max-width:1040px){.coverage-coach-strip{max-width:240px}.coverage-coach-strip>span{font-size:10px}.run-live{padding:12px}.run-live-label{gap:7px}.run-live-label span{font-size:9px}.run-live-bands span{font-size:9px;padding:7px}}
+@media(max-width:650px){
+ .coverage-coach-strip{top:auto;left:10px;bottom:55px;max-width:calc(100% - 123px);padding:8px 10px;gap:3px}
+ .coverage-coach-strip>b{font-size:17px}.coverage-coach-strip>span{font-size:9px}.coverage-coach-strip>small{font-size:8px}
+ .run-live{grid-row:2/4;grid-column:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;padding:7px}
+ .run-live-label{flex-direction:column;text-align:center;gap:4px}.run-live-label strong{font-size:26px}.run-live-label span{font-size:9px}
+ .run-live-bands{flex-direction:row;gap:6px}.run-live-bands span{font-size:9px;padding:5px}
+}
+@media(max-height:640px){.coverage-coach-strip{bottom:44px;padding:5px 8px}.coverage-coach-strip>span{display:none}}
