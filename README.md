@@ -5,6 +5,20 @@ Inspired by classic electric tabletop football and the decision-making stakes of
 
 **Play:** https://joestella99.github.io/electric-Football/
 
+## V6 — Strategic Madden Lite (adaptive coaching)
+
+The game is moving from a pass-target demonstration toward a football strategy game with **offense versus a reactive defensive coordinator**.
+
+- The opposing coordinator (src/logic/strategy.ts) chooses the **next defensive look** using only previous plays, down and distance, game clock, and field position. It deliberately does **not** inspect the player's next playcall. Run-heavy sequences draw heavier boxes; long passing and repeated deep concepts invite different coverage and pressure, with deterministic variety.
+- A compact **defensive scouting card** identifies the visible shell, pressure tendency, and recent-play trend. This is situational football information, not omniscience about hidden coverage rotations.
+- Choose either **SNAP** directly for fast play or **CHECK DEFENSE** to approach the line, inspect the field, and make an audible. Audibles are optional and cost two game-clock seconds while the clock runs.
+- The film room shows an A–D **coaching decision grade**, a 0–100 call-fit score, a tactical explanation, and a better alternative where relevant. This decision is assessed **before the snap**, without looking at the outcome. A drive-ending coaching report averages these grades.
+- Call fit rewards situational decisions (clock preservation, third/fourth-down yardage, pressure beaters, deep shots when touchdowns are needed) and penalizes blindly repeating the same calls. It is an explicitly original and heuristic coaching score, **not a calibrated NFL win probability** or an official NFL grade.
+- The existing V5 receiver buttons remain immediate throws, with bullet/touch timing, spatial coverage outcomes, play-action, rollouts and live blocking.
+- No additional pages, constant 3D polling during playcalling, or forced intermediate screens. The 3D field starts only after you choose to check the defense or snap.
+
+Known limits: this is still a simplified single-drive simulation. It does **not** currently implement complete NFL offensive/defensive possessions, a true play-by-play dataset, fully realistic tackling or blocking, licensed team playbooks, or a calibrated coaching decision model. Browser frame-rate, correctness and accessibility still need device-level playtesting.
+
 ## V5 — Immersive Coach → Quarterback Overhaul
 
 **The entire interaction is replaced.** The V5 entrypoint is \`src/GameExperience.tsx\`, styled by \`src/experience.css\`. The previous UI remains in \`src/App.tsx\` as an archived reference, not the live game.
