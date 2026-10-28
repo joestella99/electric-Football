@@ -161,8 +161,8 @@ function SpatialBall({world}:{world:World}){
   useFrame(()=>{
     if(!mesh.current)return;
     if(world.play==='inside'||world.play==='outside'){
-      const [x,z]=actorPoint(world,1);
-      mesh.current.position.set(x,2.15,z);
+      const [x,z]=actorPoint(world,world.t<.42?0:1);
+      mesh.current.position.set(x,world.t<.42?2.65:2.15,z);
       mesh.current.rotation.x=world.t*5;
     }else if(world.flight){
       const [x,y,z]=world.flight.position;
