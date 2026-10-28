@@ -50,12 +50,12 @@ export const SCENARIOS: Scenario[] = [
 ];
 
 export const PLAYS: { id: PlayId; name: string; tag: string; description: string }[] = [
-  { id: 'quick', name: 'QUICK SLANTS', tag: 'PASS · 3–10 YDS', description: 'Fast release. Beats a blitz.' },
-  { id: 'sideline', name: 'SIDELINE OUT', tag: 'PASS · 6–16 YDS', description: 'Attack the boundary. Stop the clock.' },
-  { id: 'deep', name: 'FOUR VERTICALS', tag: 'PASS · 15–35 YDS', description: 'Big play potential. Big risk.' },
-  { id: 'screen', name: 'RB SCREEN', tag: 'PASS · 1–18 YDS', description: 'Let the pass rush come to you.' },
-  { id: 'inside', name: 'DIVE RIGHT', tag: 'RUN · 1–7 YDS', description: 'Exploit a soft defensive front.' },
-  { id: 'outside', name: 'JET SWEEP', tag: 'RUN · 0–14 YDS', description: 'Beat a crowded box outside.' },
+  { id: 'quick', name: 'QUICK GAME', tag: 'PASS · QUICK', description: 'Slant / drag / flat spacing. Beat pressure.' },
+  { id: 'sideline', name: 'SAIL / FLOOD', tag: 'PASS · 3 LEVELS', description: 'Stress one sideline with three depths.' },
+  { id: 'deep', name: 'VERTICAL SHOT', tag: 'PASS · DEEP', description: 'Attack deep leverage and split safeties.' },
+  { id: 'screen', name: 'RB SCREEN', tag: 'PASS · SCREEN', description: 'Invite rush, throw underneath pursuit.' },
+  { id: 'inside', name: 'INSIDE ZONE', tag: 'RUN · INSIDE', description: 'Work the interior blocks and attack a gap.' },
+  { id: 'outside', name: 'OUTSIDE ZONE', tag: 'RUN · EDGE', description: 'Stretch pursuit, press the edge, cut upfield.' },
 ];
 
 const cap = (value: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, value));
