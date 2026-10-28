@@ -3,6 +3,12 @@ import { DEFAULT_CALL, isEligible, matchingBonus, protectionTime, routeStartingX
 
 export type Point = [number, number];
 export type ReceiverId = 7 | 8 | 9 | 10 | 1;
+/** The single source of truth for the five Madden-style throwing buttons. */
+export const PASS_BUTTON_IDS: readonly ReceiverId[] = [7,8,9,10,1];
+export const passingButtonFor=(id:number):number|null=>{
+ const index=PASS_BUTTON_IDS.indexOf(id as ReceiverId);
+ return index<0?null:index+1;
+};
 export const RECEIVERS: { id: ReceiverId; label: string; number: string; role: string }[] = [
   { id: 7, label: 'HARRIS', number: '81', role: 'X' },
   { id: 8, label: 'BANKS', number: '14', role: 'Z' },
