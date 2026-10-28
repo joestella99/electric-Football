@@ -20,7 +20,7 @@ const PASS_PROGRESSIONS:Record<string,ReceiverId[]>={
 };
 function progression(play:PlayId,coverage:CoverageId,call:TacticalCall):ReceiverId[]{
   const initial:ReceiverId[]=PASS_PROGRESSIONS[play]??PASS_PROGRESSIONS.quick;
-  const adjusted=coverage==='cover0'?[10,...initial]:coverage==='cover2'?[9,...initial]:coverage==='cover3'?[1,...initial]:initial;
+  const adjusted:ReceiverId[]=coverage==='cover0'?[10,...initial]:coverage==='cover2'?[9,...initial]:coverage==='cover3'?[1,...initial]:initial;
   return [...new Set<ReceiverId>(adjusted)].filter(id=>isEligible(id,call)).slice(0,3);
 }
 const ICON: Record<PlayId,string> = {
