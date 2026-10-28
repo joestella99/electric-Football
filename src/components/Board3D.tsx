@@ -24,7 +24,7 @@ type Props = {
   onAutoThrow:(receiver:ReceiverId)=>void;
   onLead:(point:Point)=>void; assistAim:boolean;
   quality:'performance'|'balanced'|'high'; onFps:(fps:number)=>void; offenseColor:string;opponentColor:string;personnel:HistoricalPersonnel|null;
-  buttonPassing?:boolean;
+  buttonPassing?:boolean; onReady?:()=>void;
   onCoverage:(read:Record<number,number>)=>void;
   live: Live | null; motion: Motion | null; aim: Point; receiver: ReceiverId;
   onAim: (point: Point) => void; onThrow: (point: Point, id?: ReceiverId) => void;
@@ -369,7 +369,8 @@ export default function Board3D(props:Props){
   return <Canvas camera={{position:[7,50,props.yard-25],fov:43,near:.1,far:260}}
     dpr={props.quality==='performance'?[.6,.75]:props.quality==='high'?[1,1.45]:[.7,1.05]} gl={{antialias:props.quality!=='performance',alpha:false,powerPreference:'high-performance'}}
     style={{width:'100%',height:'100%',touchAction:'none'}}
-    fallback={<div className="webgl-error">3D requires a WebGL-capable browser with hardware acceleration.</div>}>
+    onCreated={()=>props.onReady?.()}
+    fallback={<div className="webgl-error">3D rendering is unavailable on this device. Choose 2D in the top toolbar to keep playing.</div>}>
     <Scene {...props}/>
   </Canvas>;
 }
