@@ -2,7 +2,7 @@ import type { Defense, GameState, PlayId } from './drill.ts';
 
 export type Formation = 'spread' | 'trips' | 'bunch';
 export type Protection = 'base' | 'max' | 'slide';
-export type TacticalCall = { formation: Formation; protection: Protection };
+export type TacticalCall = { formation: Formation; protection: Protection; concept?:string; playAction?:boolean; rollout?:'none'|'left'|'right' };
 export const DEFAULT_CALL: TacticalCall = { formation: 'spread', protection: 'base' };
 
 export const FORMATIONS: { id: Formation; name: string; detail: string }[] = [
