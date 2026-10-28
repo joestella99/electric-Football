@@ -245,7 +245,7 @@ function App() {
         <div className="down-flag"><b>{game.down}<sup>{game.down===1?'ST':game.down===2?'ND':game.down===3?'RD':'TH'}</sup> &amp; {game.toGo}</b><span>{fieldSpot(game.yard)}</span></div>
         <div className="defense-read"><Shield size={15}/><span>{postSnap?'DEFENSE ROTATED':'PRE-SNAP LOOK'}</span><strong>{postSnap?coverageInfo.name:read.shell}</strong></div>
       </div>
-      {!active&&!finished&&!lobbyOpen&&currentConcept&&<div className="play-brief"><div><small>{ownTeam.abbr{'}'} OFFENSE · {STYLE_LABEL[ownTeam.style]{'}'}</small><b>{currentConcept.name{'}'}</b><span>{currentConcept.tip{'}'}</span></div><button onClick={()=>setTacticsOpen(true)}>EDIT ROUTES</button></div>}
+      {!active&&!finished&&!lobbyOpen&&currentConcept&&<div className="play-brief"><div><small>{ownTeam.abbr} OFFENSE · {STYLE_LABEL[ownTeam.style]}</small><b>{currentConcept.name}</b><span>{currentConcept.tip}</span></div><button onClick={()=>setTacticsOpen(true)}>EDIT ROUTES</button></div>}
       {!live&&!motion&&!finished&&<div className="coach-banner"><ScanEye size={14}/><span><strong>{read.cue}</strong><small>{coachNote}</small></span><button onClick={()=>setTacticsOpen(true)}><ClipboardList size={14}/> COACH'S BOARD</button></div>}
       {postSnap&&<div className="coverage-coach-strip"><b>{coverageInfo.name}</b><span>{coverageInfo.description}</span><small>ATTACK: {coverageInfo.weakness}</small></div>}
       <div className="camera-switch">
