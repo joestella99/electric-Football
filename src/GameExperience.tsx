@@ -6,6 +6,7 @@ import FieldErrorBoundary from './components/FieldErrorBoundary';
 import Pregame from './components/Pregame';
 import PlayCallScreen from './components/PlayCallScreen';
 import {planDefense,scoutDefense,gradeDecision,driveCoachScore,type DriveSnap,type CoachGrade} from './logic/strategy';
+import {canSetPlay,canSnap,snapSetupSeconds,audibleSeconds,type DrivePhase} from './logic/driveFlow';
 import {TEAM_BY_ID,HISTORICAL_CHALLENGES,practiceGame,teamPlaybook,type TeamConcept} from './logic/nfl';
 import {historicalPersonnel} from './logic/nflRoster';
 import {fieldSpot,formatClock,kickDistance,simulate,useTimeout,type GameState,type Result} from './logic/drill';
@@ -14,7 +15,7 @@ import {type RouteBook,type PassStyle,type RouteKind} from './logic/spatial';
 import {FORMATIONS,PROTECTIONS,isEligible,presnapRead,type TacticalCall} from './logic/tactics';
 import {COVERAGES,selectCoverage} from './logic/coverage';
 import {playCue} from './logic/audio';
-type Stage='calling'|'ready'|'live'|'result'|'finished';
+type Stage=DrivePhase;
 type Category='RUN'|'PASS'|'RPO'|'TRICK';
 type Tempo='hurry'|'huddle'|'drain';
 type View='sideline'|'coach';
@@ -104,14 +105,15 @@ function GameExperience(){
   setRpoChoice('pull');setReceiver(7);
  };
  const setPlayAtLine=()=>{
-  if(stage!=='calling'||game.status!=='playing')return;
+  if(!canSetPlay(stage)||game.status!=='playing')return;
   setShowFieldReads(true);
   setStage('ready');
  };
  const audibleTo=(concept:TeamConcept)=>{
   if(stage!=='ready'||game.status!=='playing')return;
-  if(game.clockRunning&&game.seconds<=2)return;
-  if(game.clockRunning)setGame(s=>({...s,seconds:Math.max(0,s.seconds-2)}));
+  const cost=audibleSeconds(game.clockRunning);
+  if(game.seconds<=cost)return;
+  if(cost)setGame(s=>({...s,seconds:Math.max(0,s.seconds-cost)}));
   setChosenId(concept.id);
   setCall({...initialCustom(concept),concept:concept.id,playAction:concept.id==='pashot'||concept.id==='fleaflicker'});
   setRoutes(concept.routes);setRpoChoice('pull');
@@ -123,8 +125,8 @@ function GameExperience(){
  };
  const snap=()=>{
   // The ball can only be snapped once the offense has been set on the field.
-  if(stage!=='ready'||game.status!=='playing')return;
-  const spent=game.clockRunning?(tempo==='drain'?12:tempo==='huddle'?5:1):0;
+  if(!canSnap(stage)||game.status!=='playing')return;
+  const spent=snapSetupSeconds(game.clockRunning,tempo);
   if(game.seconds<=spent){setGame(g=>({...g,seconds:0,status:'lost',message:'THE CLOCK RAN OUT BEFORE THE SNAP.'}));setStage('finished');return;}
   const snapState={...game,seconds:game.seconds-spent};
   snapDecision.current={grade:gradeDecision(snapState,{...selected,play:effectivePlay},call,teamBook,snaps),concept:selected,prior:snapState};
