@@ -308,7 +308,7 @@ function PerformanceSampler({onFps}:{onFps:(fps:number)=>void}){
   return null;
 }
 function Scene(props:Props){
-  const {yard,toGo,defense,play,view,call,live,motion,aim,receiver,routes,drawTarget,throwRequest,game,onAim,onDrawPoint,onThrow,onAutoThrow,onLead,assistAim,onTick,onCoverage,onSpatialResult,onDone,quality,onFps}=props;
+  const {yard,toGo,defense,play,view,call,live,motion,aim,receiver,routes,drawTarget,throwRequest,game,onAim,onDrawPoint,onThrow,onAutoThrow,onLead,assistAim,onTick,onCoverage,onSpatialResult,onDone,quality,onFps,offenseColor,opponentColor}=props;
   const elapsed=useRef(0),progress=useRef(0),lastHover=useRef(0);
   const displayYard=motion?.startYard??yard;
   const previewWorld=useMemo(()=>newWorld(displayYard,defense,play,call,routes,game.plays),[displayYard,defense,play,call,routes,game.plays]);
