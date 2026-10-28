@@ -435,3 +435,36 @@
 .tactical-player-helmet{width:60%;height:62%;border-radius:50%;background:#ffffffa8;box-shadow:0 0 0 1px #17352865}
 .tactical-field-preview .tactical-jersey-number{font-size:7px;min-width:15px;height:14px;padding:1px 3px;border-width:1px;bottom:calc(100% + 3px)}
 @media(max-width:690px){.tactical-jersey-number{font-size:10px;min-width:22px;height:18px;bottom:calc(100% + 4px);padding:2px 3px;border-width:1px}}
+
+/* Madden-lite coaching intel & post-snap game film. */
+.pc-scout{border:1px solid #6a8e79;border-left:4px solid #e7bf78;background:linear-gradient(120deg,#284b3b,#132d25);padding:9px;display:flex;flex-direction:column;gap:6px}
+.pc-scout>div{display:flex;justify-content:space-between;align-items:center;gap:5px}
+.pc-scout>div strong{font:900 18px 'Barlow Condensed',sans-serif;color:#f3d28e;letter-spacing:.5px}
+.pc-scout>div span{white-space:nowrap;background:#c08453;color:#182d26;padding:4px;font:800 8px 'DM Mono',monospace}
+.pc-scout p{font:500 11px/1.35 Outfit,sans-serif;color:#e1e6d6;margin:0}
+.pc-scout>small{color:#b7c8b5;font:500 10px/1.38 Outfit,sans-serif}
+.pc-situation-warning{padding:8px 9px;text-align:center;font:800 10px 'DM Mono',monospace;color:#e8c285;border:1px dashed #587965}
+.v6-film-review{bottom:4%;width:min(620px,calc(100% - 24px));max-height:83%;overflow-y:auto;z-index:5}
+.v6-coach-grade{margin-top:13px;display:flex;gap:12px;border:1px solid #678675;background:#1e392e;padding:10px}
+.v6-grade-letter{display:grid;place-items:center;width:56px;min-width:56px;min-height:60px;font:900 43px 'Barlow Condensed',sans-serif;background:#a4c68c;color:#102c23;border:2px solid #daf1c3}
+.v6-grade-letter.grade-B{background:#ead08e;border-color:#f5e8b5}
+.v6-grade-letter.grade-C{background:#dbaa79;border-color:#ffe0b9}
+.v6-grade-letter.grade-D{background:#c97c6a;border-color:#f1afa1}
+.v6-coach-grade>div:last-child{display:flex;flex-direction:column;gap:5px}
+.v6-coach-grade b{font:900 18px 'Barlow Condensed',sans-serif;color:#f4d79a}
+.v6-coach-grade span{font:500 12px/1.4 Outfit,sans-serif;color:#deead9}
+.v6-coach-grade small{font:700 10px Outfit,sans-serif;color:#aacbb3}
+.v6-next-read{display:flex;align-items:center;gap:7px;color:#d3ddcb;font:800 10px 'DM Mono',monospace;margin:13px 0}
+.v6-method-note{display:block;color:#9fb6a5;font:500 10px/1.35 Outfit,sans-serif;margin-top:11px}
+.v6-final-grade{background:#283c2f;border:1px solid #e3c17d;display:flex;flex-direction:column;gap:4px;align-items:center;padding:12px}
+.v6-final-grade>span{font:800 11px 'DM Mono',monospace;color:#e9cb96}
+.v6-final-grade>b{font:900 42px 'Barlow Condensed',sans-serif;color:#f5e2b4}
+.v6-final-grade>small{font:500 11px Outfit,sans-serif;color:#d5decf;text-align:center}
+@media(max-width:780px){
+.pc-scout{padding:6px;gap:3px}.pc-scout>div strong{font-size:13px}.pc-scout>div span{font-size:7px;padding:3px}
+.pc-scout p{font-size:9px}.pc-scout>small{font-size:8px}
+.pc-situation-warning{font-size:8px;padding:4px}
+.v6-film-review{bottom:5px;padding:12px;max-height:88%}.v6-film-review h2{font-size:25px}
+.v6-coach-grade{padding:7px;gap:8px}.v6-grade-letter{min-height:45px;min-width:42px;width:42px;font-size:30px}
+.v6-coach-grade b{font-size:14px}.v6-coach-grade span{font-size:10px}.v6-next-read{font-size:8px}
+}
