@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { StadiumDiorama } from './Stadium';
 import { isEligible, type TacticalCall } from '../logic/tactics';
 import InstancedPlayers from './InstancedPlayers';
+import JerseyNumbers from './JerseyNumbers';
 import type {HistoricalPersonnel} from '../logic/nflRoster';
 import CoverageOverlay from './CoverageOverlay';
 import FieldTurf from './FieldTurf';
@@ -34,37 +35,44 @@ type Props = {
 const clip = (v: number,lo:number,hi:number)=>Math.max(lo,Math.min(hi,v));
 const ballGeometry = new THREE.SphereGeometry(.58,10,8);
 
-function CameraRig({yard,view,world}:{yard:number;view:View;world:World|null}) {
-  const camera=useThree(s=>s.camera);
-  const size=useThree(s=>s.size);
-  const point=useRef(new THREE.Vector3(0,0,clip(yard+17,23,87)));
-  const pose=useRef(new THREE.Vector3());
-  useFrame((_,dt)=>{
-    const mobile=size.width/Math.max(1,size.height)<1.12;
-    const ball=world?.flight;
-    const running=world&&(world.play==='inside'||world.play==='outside');
-    const runner=running?world.actors[1]:null;
-    const focus=ball?clip(ball.position[2]+4,20,90):running?clip((runner?.z??yard)+7,20,90):clip(yard+18,20,90);
-    const x=ball?ball.position[0]*.18:running?(runner?.x??0)*.12:0;
-    const ease=1-Math.exp(-dt*(ball?3.3:2.7));
-    point.current.x+=(x-point.current.x)*ease;
-    point.current.z+=(focus-point.current.z)*ease;
-    if(view==='coach'){
-      pose.current.set(point.current.x,mobile?87:79,point.current.z+.01);
-    }else{
-      // Keep the throwing camera stable until the ball leaves the QB's hand.
-      const side=mobile?0:8;
-      const z=point.current.z-(mobile?32:29);
-      pose.current.set(side,mobile?53:43,z);
-    }
-    camera.position.lerp(pose.current,ease);
-    camera.lookAt(point.current);
-    if(camera instanceof THREE.PerspectiveCamera){
-      const desired=mobile?52:46;
-      if(camera.fov!==desired){camera.fov=desired;camera.updateProjectionMatrix();}
-    }
-  });
-  return null;
+/** Broadcast QB camera: zero lateral offset, elevated directly behind the quarterback.
+ * Follow the line of scrimmage rather than chasing targets, preserving depth perception
+ * and a stable tactical horizon as routes develop.
+ */
+function CameraRig({yard,view,world}:{yard:number;view:View;world:World|null}){
+ const camera=useThree(s=>s.camera);
+ const size=useThree(s=>s.size);
+ const initialized=useRef(false);
+ const targetRef=useRef(new THREE.Vector3(0,1,yard+21));
+ const pose=useRef(new THREE.Vector3());
+ const focus=useRef(new THREE.Vector3());
+ useFrame((_,dt)=>{
+  const portrait=size.width<size.height;
+  const qb=world?.actors[0];
+  const spot=qb?.z??yard-5;
+  const ball=world?.flight?.position;
+  const lookZ=world?.flight&&ball?Math.max(yard+18,Math.min(yard+46,ball[2]+6)):yard+21;
+  if(view==='coach'){
+   pose.current.set(0,portrait?78:70,yard+15);
+   focus.current.set(0,.5,yard+13);
+  }else{
+   // Lock lateral position behind QB. A small vertical follow keeps the ball visible.
+   pose.current.set(0,portrait?53:36,spot-(portrait?37:27));
+   focus.current.set(0,1.6,lookZ);
+  }
+  const k=initialized.current?1-Math.exp(-Math.min(dt,.1)*3.6):1;
+  camera.position.lerp(pose.current,k);
+  // Avoid camera roll or sudden sideward changes in close-up QB mode.
+  const existingTarget=targetRef.current;
+  existingTarget.lerp(focus.current,k);
+  camera.lookAt(existingTarget);
+  initialized.current=true;
+  if(camera instanceof THREE.PerspectiveCamera){
+   const nextFov=view==='coach'?(portrait?53:48):(portrait?59:51);
+   if(Math.abs(camera.fov-nextFov)>.01){camera.fov=nextFov;camera.updateProjectionMatrix();}
+  }
+ });
+ return null;
 }
 function WoodCabinet(){
   return <group>
@@ -332,6 +340,7 @@ function Scene(props:Props){
     <StadiumDiorama crowd={quality!=='performance'}/>
     <MemoCabinet/>
     <MemoField yard={displayYard} toGo={toGo}/>
+    <JerseyNumbers world={world??previewWorld}/>
     {!motion && <RouteLines yard={displayYard} play={play} call={call} routes={routes} selected={receiver} live={!!live}/>}
     {world&&view==='coach'&&<CoverageOverlay world={world}/>}
     {world ? <>
@@ -366,7 +375,7 @@ function Scene(props:Props){
   </>;
 }
 export default function Board3D(props:Props){
-  return <Canvas camera={{position:[7,50,props.yard-25],fov:43,near:.1,far:260}}
+  return <Canvas camera={{position:[0,36,props.yard-32],fov:51,near:.1,far:260}}
     dpr={props.quality==='performance'?[.6,.75]:props.quality==='high'?[1,1.45]:[.7,1.05]} gl={{antialias:props.quality!=='performance',alpha:false,powerPreference:'high-performance'}}
     style={{width:'100%',height:'100%',touchAction:'none'}}
     onCreated={()=>props.onReady?.()}
