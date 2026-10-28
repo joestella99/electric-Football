@@ -203,12 +203,20 @@ function GameExperience(){
    </div>
   </header>
   <main className="v5-stage">
-   {!lobbyOpen&&<Board3D yard={game.yard} toGo={game.toGo} defense={game.defense} play={selected.play}
+   {!lobbyOpen&&stage!=='calling'&&<Board3D yard={game.yard} toGo={game.toGo} defense={game.defense} play={selected.play}
     view={view} call={call} game={game} routes={routes} drawTarget={null} throwRequest={throwRequest}
     onDrawPoint={()=>{}} onSpatialResult={complete} onAutoThrow={passTo} onLead={()=>{}} assistAim={false}
     buttonPassing quality={quality} onFps={setFps} offenseColor={teams[0].primary} opponentColor={teams[1].primary} personnel={roster}
     onCoverage={setCoverage} live={live} motion={null} aim={[0,game.yard+14]} receiver={receiver}
     onAim={()=>{}} onThrow={()=>{}} onSelect={setReceiver} onTick={setElapsed} onDone={()=>{}}/>}
+   {stage==='calling'&&!lobbyOpen&&<div className="v5-call-situation">
+    <span className="v5-eyebrow">SITUATION ROOM</span>
+    <h3>{game.down}<sup>{game.down===1?'ST':game.down===2?'ND':game.down===3?'RD':'TH'}</sup> & {game.toGo}</h3>
+    <p>{teams[0].abbr} BALL · {fieldSpot(game.yard)}</p>
+    <div className="v5-field-mini"><div className="v5-field-track" style={{bottom:clamp(game.yard,4,94)+'%'}}><span/></div><span>GOAL</span><small>YOUR DRIVE</small><b>OWN 0</b></div>
+    <div className="v5-clock-warning"><Clock3 size={15}/><span>{formatClock(game.seconds)}<small>{game.clockRunning?'CLOCK RUNNING':'CLOCK STOPPED'}</small></span></div>
+    <small className="v5-difficulty">{challenge?.eyebrow??'CUSTOM MATCHUP'} · {game.timeouts} TIMEOUTS</small>
+   </div>}
    <div className="v5-screen-vignette" aria-hidden="true"/>
    <div className="v5-field-ribbon">
     <div className="v5-down"><b>{game.down}<sup>{game.down===1?'ST':game.down===2?'ND':game.down===3?'RD':'TH'}</sup> & {game.toGo}</b><span>{fieldSpot(game.yard)}</span></div>
