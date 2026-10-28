@@ -337,7 +337,7 @@ function Scene(props:Props){
       <Target aim={aim} active={passPlay(play)&&world.phase==='live'}/>
     </> : <>
       <Clock live={null} motion={motion} defense={defense} protection={call.protection} elapsed={elapsed} progress={progress} onTick={onTick} onSack={()=>{}} onDone={onDone}/>
-      <InstancedPlayers world={previewWorld} active={false} motion={motion} progress={progress} selected={receiver}/>
+      <InstancedPlayers world={previewWorld} active={false} motion={motion} progress={progress} selected={receiver} offenseColor={offenseColor} opponentColor={opponentColor}/>
       <Ball yard={displayYard} motion={motion} progress={progress}/>
     </>}
     {(drawTarget!==null&&!live&&!motion||!!world&&passPlay(play)&&world.phase==='live') &&
