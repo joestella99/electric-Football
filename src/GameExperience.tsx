@@ -387,8 +387,9 @@ function GameExperience(){
   </div>}
   {showHelp&&<div className="v5-help-backdrop" onClick={()=>setShowHelp(false)}><div className="v5-help" onClick={e=>e.stopPropagation()}>
    <button className="v5-help-close" onClick={()=>setShowHelp(false)}>×</button><span className="v5-eyebrow"><Headphones size={14}/> THE COACH'S GUIDE</span>
-   <h2>DESIGN. READ. RELEASE.</h2><p>Pick a play in the coach's book and adjust routes and protection. Break the huddle, then SNAP. When your QB goes live, the five receiver buttons are the entire passing interface.</p>
-   <p><b>1–5</b> throws to receivers instantly · <b>Q/E</b> switch bullet/touch · <b>V</b> camera · <b>Space</b> snap or pass to the highlighted target.</p>
+   <h2>DESIGN. SET. READ. SNAP.</h2><p>Pick a play and adjust routes, protection and tempo. Press SET PLAY to see the actual formation on the field. Take as much time as needed to inspect coverage. Audible or return to the playbook, then explicitly press SNAP when ready.</p>
+   <p><b>Enter / Space</b> sets the play in the playbook · <b>Space</b> snaps only from the field · <b>1–5</b> throws instantly to the same numbered players above their heads · <b>Q/E</b> bullet/touch · <b>V</b> camera · <b>R</b> toggle pre-snap scouting.</p>
+   <p>Planning is a tactical pause: the game clock is charged when you snap, and audibles cost two seconds while the game clock is running.</p>
    <p>OPEN/WINDOW/COVERED reflect current defender distance, not a guaranteed catch. Throw as separation develops. Bullet passes arrive faster; touch passes arc higher and take longer.</p>
    <button className="v5-main-button" onClick={()=>setShowHelp(false)}>BACK TO THE GAME <Check size={16}/></button>
   </div></div>}
