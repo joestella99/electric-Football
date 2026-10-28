@@ -1,5 +1,5 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
-import {newWorld,stepWorld,throwBall,predictLead,resultFromWorld,closestDefender,actorPoint,routeVertices,type World} from '../logic/spatial';
+import {newWorld,stepWorld,throwBall,predictLead,resultFromWorld,closestDefender,actorPoint,routeVertices} from '../logic/spatial';
 import {isEligible} from '../logic/tactics';
 import type {Live,ThrowRequest} from './Board3D';
 import type {GameState,Result,PlayId} from '../logic/drill';
