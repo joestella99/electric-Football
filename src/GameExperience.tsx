@@ -4,41 +4,21 @@ import Board3D,{type Live,type ThrowRequest} from './components/Board3D';
 import TacticalField2D from './components/TacticalField2D';
 import FieldErrorBoundary from './components/FieldErrorBoundary';
 import Pregame from './components/Pregame';
+import PlayCallScreen from './components/PlayCallScreen';
 import {TEAM_BY_ID,HISTORICAL_CHALLENGES,STYLE_LABEL,practiceGame,teamPlaybook,type TeamConcept} from './logic/nfl';
 import {historicalPersonnel} from './logic/nflRoster';
 import {fieldSpot,formatClock,kickDistance,simulate,useTimeout,type GameState,type Result} from './logic/drill';
 import {RECEIVERS,passPlay,pressureLimit,type ReceiverId,type Point} from './logic/throwing';
-import {ROUTE_OPTIONS,routeVertices,type RouteBook,type PassStyle} from './logic/spatial';
+import {type RouteBook,type PassStyle,type RouteKind} from './logic/spatial';
 import {FORMATIONS,PROTECTIONS,isEligible,presnapRead,type TacticalCall} from './logic/tactics';
 import {COVERAGES,selectCoverage} from './logic/coverage';
 import {playCue} from './logic/audio';
 type Stage='calling'|'ready'|'live'|'result'|'finished';
-type Category='ALL'|'QUICK'|'SHOT'|'RUN';
+type Category='RUN'|'PASS'|'RPO'|'TRICK';
+type Tempo='hurry'|'huddle'|'drain';
 type View='sideline'|'coach';
 const ROSTER=RECEIVERS.map(r=>r.id);
-const categorise=(c:TeamConcept):Category=>c.family==='RUN'?'RUN':c.play==='deep'?'SHOT':'QUICK';
 const clamp=(n:number,a:number,b:number)=>Math.min(b,Math.max(a,n));
-function RoutePreview({concept,large=false,onWaypoint}:{concept:TeamConcept;large?:boolean;onWaypoint?:(point:Point)=>void}){
- const routes=([7,8,9,10,1] as ReceiverId[]).filter(id=>isEligible(id,{formation:concept.formation,protection:concept.protection}));
- const paths=routes.map((id,i)=>{
-   const vertices=routeVertices(id,concept.routes[id],concept.formation);
-   const points=vertices.map(([x,z])=>[73+x*2.35,129-z*1.57] as const);
-   return {id,i,points};
- });
- return <svg className={'route-preview '+(large?'route-preview-large':'')+(onWaypoint?' route-drawing':'')} viewBox="0 0 146 142" role="img" aria-label={'Route diagram: '+concept.name}
-   onClick={onWaypoint?e=>{const r=e.currentTarget.getBoundingClientRect();const x=146*(e.clientX-r.left)/r.width;const y=142*(e.clientY-r.top)/r.height;onWaypoint([clamp((x-73)/2.35,-25.5,25.5),clamp((129-y)/1.57,0,72)]);}:undefined}>
-   <rect x="1" y="1" width="144" height="140" rx="5" fill="#173b32"/>
-   {[26,51,76,101,126].map(y=><line key={y} x1="3" x2="143" y1={y} y2={y} stroke="#8cac8d" strokeOpacity=".24" strokeWidth="1"/>)}
-   <line x1="3" x2="143" y1="129" y2="129" stroke="#c7e5ce" strokeOpacity=".85" strokeDasharray="5 2"/>
-   <circle cx="73" cy="135" r="3.6" fill="#eac27b"/>
-   {paths.map(p=><g key={p.id}>
-     <polyline points={p.points.map(pt=>pt.join(',')).join(' ')} fill="none" stroke={['#f3d387','#a7d9e2','#f59f83','#d3bcf0','#b0d9a5'][p.i]} strokeWidth={large?2.6:2.2} strokeLinejoin="round" strokeLinecap="round"/>
-     <circle cx={p.points[0][0]} cy={p.points[0][1]} r="4.2" fill="#f4e7cd" stroke="#0e2921" strokeWidth="1"/>
-     <circle cx={p.points[p.points.length-1][0]} cy={p.points[p.points.length-1][1]} r="2.6" fill={['#f3d387','#a7d9e2','#f59f83','#d3bcf0','#b0d9a5'][p.i]}/>
-   </g>)}
-   <text x="8" y="12" fill="#d7e6d3" fontSize="8" fontWeight="700" letterSpacing="1">OFFENSE / ALL-22</text>
- </svg>;
-}
 function newBook(teamId:string){return teamPlaybook(teamId);}
 function getFirst(teamId:string){return newBook(teamId)[0];}
 function initialCustom(c:TeamConcept){return {formation:c.formation,protection:c.protection} as TacticalCall;}
@@ -59,7 +39,9 @@ function GameExperience(){
  const [elapsed,setElapsed]=useState(0);
  const [coverage,setCoverage]=useState<Record<number,number>>({});
  const [result,setResult]=useState<Result|null>(null);
- const [filter,setFilter]=useState<Category>('ALL');
+ const [filter,setFilter]=useState<Category>('PASS');
+ const [tempo,setTempo]=useState<Tempo>('hurry');
+ const [rpoChoice,setRpoChoice]=useState<'give'|'pull'>('pull');
  const [passStyle,setPassStyle]=useState<PassStyle>('bullet');
  const [view,setView]=useState<View>('sideline');
  const [quality,setQuality]=useState<'performance'|'balanced'|'high'>(()=>typeof window!=='undefined'&&window.matchMedia('(max-width:760px)').matches?'performance':'balanced');
@@ -73,9 +55,6 @@ function GameExperience(){
  const [fieldError,setFieldError]=useState<string|null>(null);
  const [rendererVersion,setRendererVersion]=useState(0);
  const [sound,setSound]=useState(true);
- const [routeEditor,setRouteEditor]=useState<ReceiverId>(7);
- const [editingRoutes,setEditingRoutes]=useState(false);
- const [drawingRoute,setDrawingRoute]=useState(false);
  const [history,setHistory]=useState<{id:number;label:string;gain:number;clock:number}[]>([]);
  const [driveInfo,setDriveInfo]=useState(false);
  const [showHelp,setShowHelp]=useState(false);
@@ -84,7 +63,6 @@ function GameExperience(){
  const teams=useMemo(()=>[TEAM_BY_ID[teamId],TEAM_BY_ID[opponentId]],[teamId,opponentId]);
  const teamBook=useMemo(()=>newBook(teamId),[teamId]);
  const selected=teamBook.find(c=>c.id===chosenId)??teamBook[0];
- const customized=useMemo<TeamConcept>(()=>({...selected,formation:call.formation,protection:call.protection,routes}),[selected,call,routes]);
  const roster=historicalPersonnel(scenarioId);
  const read=presnapRead(game.defense);
  const coverageId=selectCoverage(game.defense,game.plays);
@@ -95,13 +73,13 @@ function GameExperience(){
  const pocket=pressureLimit(game.defense,call.protection);
  const playSeconds=clamp(pocket-elapsed,0,pocket);
  const challenge=HISTORICAL_CHALLENGES.find(s=>s.id===scenarioId);
- const shown=filter==='ALL'?teamBook:teamBook.filter(c=>categorise(c)===filter);
+ const effectivePlay=selected.family==='RPO'&&rpoChoice==='give'?'inside':selected.play;
  const setup=(fresh:GameState,offense:string,defense:string,id:string)=>{
-  const c=getFirst(offense);
+  const c=teamPlaybook(offense).find(x=>x.family==='PASS')??getFirst(offense);
   setTeamId(offense);setOpponentId(defense);setScenarioId(id);
-  setGame({...fresh});setChosenId(c.id);setCall(initialCustom(c));setRoutes(c.routes);
-  setReceiver(7);setRouteEditor(7);setEditingRoutes(false);setDrawingRoute(false);
-  setStage('calling');setFilter('ALL');setLive(null);setThrowRequest(null);
+  setGame({...fresh});setChosenId(c.id);setCall({...initialCustom(c),concept:c.id});setRoutes(c.routes);
+  setReceiver(7);setRpoChoice('pull');setTempo('hurry');
+  setStage('calling');setFilter(c.family);setLive(null);setThrowRequest(null);
   setResult(null);setHistory([]);setElapsed(0);setCoverage({});
   setView('sideline');setLobbyOpen(false);setStarted(true);setDriveInfo(false);setFieldLoaded(false);
   serial.current++;
@@ -114,15 +92,22 @@ function GameExperience(){
  const replay=()=>scenarioId==='practice'?startExhibition(teamId,opponentId):startChallenge(scenarioId);
  const selectPlay=(concept:TeamConcept)=>{
   if(stage!=='calling')return;
-  setChosenId(concept.id);setCall(initialCustom(concept));setRoutes(concept.routes);
-  setReceiver(7);setRouteEditor(7);setEditingRoutes(false);setDrawingRoute(false);
+  setChosenId(concept.id);setCall({...initialCustom(concept),concept:concept.id,playAction:concept.id==='pashot'||concept.id==='fleaflicker'});setRoutes(concept.routes);
+  setRpoChoice('pull');setReceiver(7);
  };
- const breakHuddle=()=>{if(stage==='calling'){setEditingRoutes(false);setDrawingRoute(false);setStage('ready');}};
+ const selectFamily=(family:Category)=>{
+  setFilter(family);
+  const next=teamBook.find(x=>x.family===family);
+  if(next)selectPlay(next);
+ };
  const snap=()=>{
-  if(stage!=='ready'||game.status!=='playing')return;
+  if((stage!=='ready'&&stage!=='calling')||game.status!=='playing')return;
+  const spent=game.clockRunning?(tempo==='drain'?12:tempo==='huddle'?5:1):0;
+  if(game.seconds<=spent){setGame(g=>({...g,seconds:0,status:'lost',message:'THE CLOCK RAN OUT BEFORE THE SNAP.'}));setStage('finished');return;}
+  if(spent)setGame(g=>({...g,seconds:g.seconds-spent}));
   playCue('snap',sound);
   setCoverage({});setElapsed(0);setThrowRequest(null);setReceiver(7);
-  setLive({id:++serial.current,play:selected.play});
+  setLive({id:++serial.current,play:effectivePlay});
   setStage('live');
  };
  const complete=useCallback((r:Result)=>{
@@ -137,7 +122,7 @@ function GameExperience(){
   setThrowRequest({id:++serial.current,receiver:id,point:[0,game.yard+6] as Point,assisted:true,style:passStyle});
   playCue('throw',sound);
  },[canThrow,call,game.yard,passStyle,sound]);
- const nextPlay=()=>{if(stage==='result'){setStage('calling');setResult(null);setFilter('ALL');}};
+ const nextPlay=()=>{if(stage==='result'){setStage('calling');setResult(null);setFilter(selected.family);}};
  const special=(id:'spike'|'fieldgoal')=>{
   if(stage!=='ready'&&stage!=='calling')return;
   const r=simulate(game,id,'hurry',Math.random,call);
@@ -150,12 +135,10 @@ function GameExperience(){
   else{setFieldMode('3d');setRendererVersion(v=>v+1);setFieldLoaded(false);setFieldError(null);}
  };
  const fieldFailure=(message:string)=>{setFieldMode('2d');setFieldLoaded(false);setFieldError(message);};
- const editReceiverRoute=(id:ReceiverId,kind:RouteBook[ReceiverId]['kind'])=>{
-  setRoutes(book=>({...book,[id]:{kind}}));setDrawingRoute(false);
- };
- const addWaypoint=(point:Point)=>setRoutes(book=>{
-  const prior=book[routeEditor].kind==='custom'?book[routeEditor].points??[]:[];
-  return {...book,[routeEditor]:{kind:'custom',points:[...prior,point].slice(-5)}};
+ const editReceiverRoute=(id:ReceiverId,kind:RouteKind)=>setRoutes(book=>({...book,[id]:{kind}}));
+ const addWaypoint=(id:ReceiverId,point:Point)=>setRoutes(book=>{
+  const prior=book[id].kind==='custom'?book[id].points??[]:[];
+  return {...book,[id]:{kind:'custom',points:[...prior,point].slice(-5)}};
  });
  const buttonLabel=(id:ReceiverId)=>roster?.skill[id].last??RECEIVERS.find(r=>r.id===id)?.label??'TARGET';
  const jersey=(id:ReceiverId)=>roster?.skill[id].number??RECEIVERS.find(r=>r.id===id)?.number??'--';
@@ -188,7 +171,6 @@ function GameExperience(){
    if(lobbyOpen)return;
    if(e.code==='Escape'){
     if(showHelp)setShowHelp(false);
-    else if(editingRoutes)setEditingRoutes(false);
     else if(stage==='calling')setStage('ready');
     else if(stage==='ready')setStage('calling');
     return;
@@ -205,8 +187,8 @@ function GameExperience(){
     if(e.code==='KeyP')setStage('calling');
    }else if(stage==='calling'){
     const n=e.code.startsWith('Digit')?Number(e.code.slice(-1)):0;
-    if(n>=1&&n<=8&&teamBook[n-1])selectPlay(teamBook[n-1]);
-    if(e.code==='Enter'||e.code==='Space'){e.preventDefault();breakHuddle();}
+    if(n>=1&&n<=9&&teamBook.filter(x=>x.family===filter)[n-1])selectPlay(teamBook.filter(x=>x.family===filter)[n-1]);
+    if(e.code==='Enter'||e.code==='Space'){e.preventDefault();snap();}
    }else if(stage==='result'&&(e.code==='Space'||e.code==='Enter')){
     e.preventDefault();nextPlay();
    }
@@ -237,14 +219,14 @@ function GameExperience(){
   </header>
   <main className="v5-stage">
    {!lobbyOpen&&(stage==='calling'||fieldMode==='2d'?
-    <TacticalField2D game={game} play={selected.play} call={call} routes={routes} live={stage==='calling'?null:live}
+    <TacticalField2D game={game} play={effectivePlay} call={call} routes={routes} live={stage==='calling'?null:live}
      request={throwRequest} onTick={setElapsed} onCoverage={setCoverage} onResult={complete}
      offenseColor={teams[0].primary} opponentColor={teams[1].primary} personnel={roster} preview={stage==='calling'}/>
     :<FieldErrorBoundary key={rendererVersion} onFailure={fieldFailure}
-      fallback={<TacticalField2D game={game} play={selected.play} call={call} routes={routes} live={live}
+      fallback={<TacticalField2D game={game} play={effectivePlay} call={call} routes={routes} live={live}
         request={throwRequest} onTick={setElapsed} onCoverage={setCoverage} onResult={complete}
         offenseColor={teams[0].primary} opponentColor={teams[1].primary} personnel={roster}/>}>
-      <Board3D yard={game.yard} toGo={game.toGo} defense={game.defense} play={selected.play}
+      <Board3D yard={game.yard} toGo={game.toGo} defense={game.defense} play={effectivePlay}
        view={view} call={call} game={game} routes={routes} drawTarget={null} throwRequest={throwRequest}
        onDrawPoint={()=>{}} onSpatialResult={complete} onAutoThrow={passTo} onLead={()=>{}} assistAim={false}
        buttonPassing quality={quality} onFps={setFps} onReady={()=>setFieldLoaded(true)}
@@ -273,43 +255,13 @@ function GameExperience(){
     <div className="v5-down"><b>{game.down}<sup>{game.down===1?'ST':game.down===2?'ND':game.down===3?'RD':'TH'}</sup> & {game.toGo}</b><span>{fieldSpot(game.yard)}</span></div>
     <div className="v5-defense"><small>{stage==='live'&&elapsed>.6?'POST SNAP':'PRE SNAP'}</small><strong>{stage==='live'&&elapsed>.6?coverageInfo.name:read.shell}</strong></div>
    </div>
-   {stage==='calling'&&!lobbyOpen&&<div className="v5-playcall">
-    <div className="v5-call-top">
-     <div><span className="v5-eyebrow"><BookOpen size={14}/> OFFENSIVE COORDINATOR · {teams[0].abbr}</span><h2>CALL THE PLAY.</h2><p>{STYLE_LABEL[teams[0].style]} · {game.clockRunning?'THE CLOCK IS RUNNING':'CLOCK STOPPED'}</p></div>
-     <button className="v5-call-close" onClick={breakHuddle}><Check size={16}/> BREAK HUDDLE</button>
-    </div>
-    <div className="v5-call-layout">
-     <div className="v5-play-list">
-      <div className="v5-filter">{(['ALL','QUICK','SHOT','RUN'] as Category[]).map(cat=><button key={cat} className={filter===cat?'active':''} onClick={()=>setFilter(cat)}>{cat==='QUICK'?'PASS':cat==='SHOT'?'DEEP':cat==='RUN'?'RUN':'ALL'}</button>)}</div>
-      <div className="v5-play-grid">{shown.map((c,i)=><button key={c.id} className={'v5-play-tile '+(chosenId===c.id?'active':'')} onClick={()=>selectPlay(c)}>
-       <RoutePreview concept={c}/>
-       <div className="v5-tile-label"><small>{c.family} · {c.formation.toUpperCase()}</small><b>{c.name}</b><span>{c.id===chosenId?'✓ SELECTED':'VIEW PLAY'}</span></div>
-       <i>{i+1}</i>
-      </button>)}</div>
-     </div>
-     <aside className="v5-call-detail">
-      <div className="v5-detail-title"><div><small>THE CALL</small><h3>{selected.name}</h3></div><span>{selected.family}</span></div>
-      <div className="v5-diagram-row"><RoutePreview concept={customized} large onWaypoint={editingRoutes&&drawingRoute?addWaypoint:undefined}/><div className="v5-read-detail"><strong><Zap size={15}/> QB'S NOTE</strong><p>{selected.tip}</p><small>{read.cue}</small></div></div>
-      <div className="v5-coach-options">
-       <label>FORMATION<select value={call.formation} onChange={e=>setCall(s=>({...s,formation:e.target.value as TacticalCall['formation']}))}>
-        {FORMATIONS.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
-       <label>PROTECTION<select value={call.protection} onChange={e=>setCall(s=>({...s,protection:e.target.value as TacticalCall['protection']}))}>
-        {PROTECTIONS.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
-      </div>
-      <button className={'v5-route-toggle '+(editingRoutes?'active':'')} onClick={()=>setEditingRoutes(e=>!e)}>
-       <Crosshair size={16}/> {editingRoutes?'DONE EDITING ROUTES':'CUSTOMIZE RECEIVER ROUTES'} <ChevronRight size={15}/>
-      </button>
-      {editingRoutes&&<div className="v5-route-editor">
-       <div className="v5-target-tabs">{ROSTER.filter(id=>isEligible(id,call)).map(id=><button key={id} className={routeEditor===id?'active':''} onClick={()=>{setRouteEditor(id);setDrawingRoute(false);}}>{buttonLabel(id)}</button>)}</div>
-       <div className="v5-route-options">{ROUTE_OPTIONS.map(o=><button key={o.kind} className={routes[routeEditor].kind===o.kind?'active':''} onClick={()=>editReceiverRoute(routeEditor,o.kind)}>{o.name}</button>)}</div>
-       <button className={'v5-draw-button '+(drawingRoute?'active':'')} onClick={()=>{if(!drawingRoute)setRoutes(book=>({...book,[routeEditor]:{kind:'custom',points:[]}}));setDrawingRoute(v=>!v);}}><Crosshair size={14}/>{drawingRoute?'FINISH DRAWING':'DRAW ROUTE ON DIAGRAM'}</button>
-       <small className="v5-draw-help">{drawingRoute?'Tap the large route diagram above to add up to five break points.':'Pick any preset or draw an original route.'}</small>
-      </div>}
-      <button className="v5-call-primary" onClick={breakHuddle}>CALL {selected.name}<ArrowRight size={21}/></button>
-      {game.clockRunning&&<button className="v5-call-timeout" disabled={!game.timeouts} onClick={callTimeout}><TimerReset size={15}/> STOP THE CLOCK · {game.timeouts} TIMEOUT{game.timeouts===1?'':'S'}</button>}
-     </aside>
-    </div>
-   </div>}
+   {stage==='calling'&&!lobbyOpen&&<PlayCallScreen team={teams[0].abbr} family={filter} onFamily={selectFamily}
+      book={teamBook} selected={selected} onPick={selectPlay} call={call} onCall={setCall}
+      routes={routes} onRoute={editReceiverRoute} onWaypoint={addWaypoint}
+      name={buttonLabel} jersey={jersey} clock={formatClock(game.seconds)} clockRunning={game.clockRunning}
+      downs={game.down+' & '+game.toGo} yards={fieldSpot(game.yard)}
+      timeouts={game.timeouts} onTimeout={callTimeout} onSnap={snap}
+      tempo={tempo} onTempo={setTempo} rpoChoice={rpoChoice} onRpoChoice={setRpoChoice}/>}
    {stage==='ready'&&!lobbyOpen&&<div className="v5-readyside"><span className="v5-eyebrow"><Shield size={15}/> PRE-SNAP · {teams[0].abbr} OFFENSE</span><h2>{selected.name}</h2><p>{selected.tip}</p><div><span>{FORMATIONS.find(f=>f.id===call.formation)?.name}</span><span>{PROTECTIONS.find(f=>f.id===call.protection)?.name}</span></div></div>}
    {stage==='live'&&!lobbyOpen&&<div className="v5-live-head">
     <div><span className="v5-eyebrow"><span className="v5-pulse"/> {running?'BALL CARRIER LIVE':'QB LIVE · READ & RELEASE'}</span>
@@ -327,7 +279,7 @@ function GameExperience(){
    {!lobbyOpen&&stage!=='calling'&&stage!=='finished'&&<div className="v5-camera-label">{view==='coach'?'ALL-22 · COACH CAM':'FIELD LEVEL · QB CAM'} <span>V TO SWITCH</span></div>}
   </main>
   {!lobbyOpen&&<footer className={'v5-controls v5-controls-'+stage}>
-   {stage==='calling'&&<><div className="v5-control-copy"><span className="v5-eyebrow">READY TO PLAY</span><strong>{selected.name}</strong><small>Design a play, then break the huddle.</small></div><button className="v5-main-button" onClick={breakHuddle}>BREAK HUDDLE <ArrowRight size={21}/></button></>}
+   {stage==='calling'&&<><div className="v5-control-copy"><span className="v5-eyebrow">OFFENSIVE CALL</span><strong>{selected.name}</strong><small>Choose routes, tempo and snap.</small></div><button className="v5-main-button" onClick={snap}>SNAP THE BALL <Play size={19}/></button></>}
    {stage==='ready'&&<>
     <div className="v5-control-copy"><span className="v5-eyebrow"><Shield size={13}/> YOUR CALL</span><strong>{selected.name}</strong><small>{call.formation.toUpperCase()} · {call.protection.toUpperCase()} PROTECTION</small></div>
     <div className="v5-ready-actions"><button className="v5-secondary" onClick={()=>setStage('calling')}><BookOpen size={16}/> CHANGE PLAY</button><button className="v5-secondary" disabled={!game.clockRunning||!game.timeouts} onClick={callTimeout}><TimerReset size={16}/> TIMEOUT · {game.timeouts}</button><button className="v5-secondary" disabled={!game.clockRunning} onClick={()=>special('spike')}><Clock3 size={16}/> SPIKE</button><button className="v5-secondary" onClick={()=>special('fieldgoal')}><Goal size={16}/> KICK {kickDistance(game.yard)}</button></div>
