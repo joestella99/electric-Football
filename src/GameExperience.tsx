@@ -102,6 +102,14 @@ function GameExperience(){
   setChosenId(concept.id);setCall({...initialCustom(concept),concept:concept.id,playAction:concept.id==='pashot'||concept.id==='fleaflicker'});setRoutes(concept.routes);
   setRpoChoice('pull');setReceiver(7);
  };
+ const audibleTo=(concept:TeamConcept)=>{
+  if(stage!=='ready'||game.status!=='playing')return;
+  if(game.clockRunning&&game.seconds<=2)return;
+  if(game.clockRunning)setGame(s=>({...s,seconds:Math.max(0,s.seconds-2)}));
+  setChosenId(concept.id);
+  setCall({...initialCustom(concept),concept:concept.id,playAction:concept.id==='pashot'||concept.id==='fleaflicker'});
+  setRoutes(concept.routes);setRpoChoice('pull');
+ };
  const selectFamily=(family:Category)=>{
   setFilter(family);
   const next=teamBook.find(x=>x.family===family);
@@ -279,9 +287,25 @@ function GameExperience(){
       routes={routes} onRoute={editReceiverRoute} onWaypoint={addWaypoint}
       name={buttonLabel} jersey={jersey} clock={formatClock(game.seconds)} clockRunning={game.clockRunning}
       downs={game.down+' & '+game.toGo} yards={fieldSpot(game.yard)}
-      timeouts={game.timeouts} onTimeout={callTimeout} onSnap={snap} scout={scout} scoreLead={game.ours-game.theirs} timeoutsLeft={game.timeouts}
+      timeouts={game.timeouts} onTimeout={callTimeout} onSnap={snap} onCheck={()=>setStage('ready')} scout={scout} scoreLead={game.ours-game.theirs} timeoutsLeft={game.timeouts}
       tempo={tempo} onTempo={setTempo} rpoChoice={rpoChoice} onRpoChoice={setRpoChoice}/>}
-   {stage==='ready'&&!lobbyOpen&&<div className="v5-readyside"><span className="v5-eyebrow"><Shield size={15}/> PRE-SNAP · {teams[0].abbr} OFFENSE</span><h2>{selected.name}</h2><p>{selected.tip}</p><div><span>{FORMATIONS.find(f=>f.id===call.formation)?.name}</span><span>{PROTECTIONS.find(f=>f.id===call.protection)?.name}</span></div></div>}
+   {stage==='ready'&&!lobbyOpen&&<div className="v5-readyside v6-presnap">
+   <span className="v5-eyebrow"><Shield size={15}/> AT THE LINE · {teams[0].abbr} OFFENSE</span>
+   <h2>{selected.name}</h2>
+   <p>{scout.shell} · {scout.pressure} PRESSURE</p>
+   <small>{scout.note}</small>
+   <div><span>{FORMATIONS.find(f=>f.id===call.formation)?.name}</span><span>{PROTECTIONS.find(f=>f.id===call.protection)?.name}</span></div>
+   <div className="v6-audible-list">
+    <strong>AUDIBLE / CHANGE THE LOOK</strong>
+    {(['RUN','PASS','TRICK'] as const).map(family=>{
+     const choice=teamBook.find(p=>p.family===family&&p.id!==selected.id);
+     return choice?<button key={family} disabled={game.clockRunning&&game.seconds<=2} onClick={()=>audibleTo(choice)}>
+       <span>{family}</span><b>{choice.name}</b>
+     </button>:null;
+    })}
+    <small>Audible costs 2 seconds when the game clock is running.</small>
+   </div>
+ </div>}
    {stage==='live'&&!lobbyOpen&&<div className="v5-live-head">
     <div><span className="v5-eyebrow"><span className="v5-pulse"/> {running?'BALL CARRIER LIVE':'QB LIVE · READ & RELEASE'}</span>
      <strong>{running?'FIND THE CUTBACK':throwRequest?'BALL IN THE AIR':coverageInfo.name}</strong>
