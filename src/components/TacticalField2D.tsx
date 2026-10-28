@@ -101,8 +101,10 @@ export default function TacticalField2D({game,play,call,routes,live,request,onTi
     {candidates.map(actor=>{
      const y=toY(actor.z);if(y< -3||y>103)return null;
      return <div key={actor.id} className={'tactical-field-figure '+(actor.side==='offense'?'offense':'defense')+(selected===actor.id?' throwing':'')}
+       title={actor.role+' #'+actorName(actor,personnel)}
        style={{left:toX(actor.x)+'%',bottom:y+'%',backgroundColor:actor.side==='offense'?offenseColor:opponentColor}}>
-       {actorName(actor,personnel)}
+       <span className="tactical-jersey-number">{actorName(actor,personnel)}</span>
+       <span className="tactical-player-helmet"/>
      </div>;
     })}
     {ball&&<div className="tactical-field-ball" style={{left:toX(ball[0])+'%',bottom:toY(ball[2])+'%'}}/>}
