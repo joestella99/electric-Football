@@ -383,3 +383,9 @@
 .play-brief button:hover{background:#f6db9f}
 @media(max-width:850px){.play-brief{right:9px;bottom:58px;width:min(310px,55vw);padding:9px}.play-brief b{font-size:18px}.play-brief span{font-size:9px}.play-brief button{font-size:9px}}
 @media(max-width:650px){.play-brief{left:10px;right:auto;bottom:54px;width:calc(100% - 20px);max-width:370px;gap:5px;padding:7px 9px}.play-brief b{font-size:15px}.play-brief small{font-size:7px}.play-brief span{font-size:9px}.play-brief button{display:none}}
+
+.era-identity{background:#d8c6a1;border:1px solid #c2a77b;display:flex;flex-direction:column;gap:5px;padding:10px 13px}
+.era-identity>span{color:#ad6441;font:700 9px 'DM Mono',monospace;letter-spacing:.65px}
+.era-identity>b{font:900 18px 'Barlow Condensed',sans-serif;color:#243b32;letter-spacing:.4px}
+.era-identity>small{color:#75664d;font:600 10px/1.3 Outfit,sans-serif}
+@media(max-width:650px){.era-identity{padding:8px 10px;gap:3px}.era-identity>b{font-size:16px}.era-identity>small{font-size:9px}}
