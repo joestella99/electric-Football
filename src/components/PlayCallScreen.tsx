@@ -15,7 +15,7 @@ type Props={
  routes:RouteBook;onRoute:(id:ReceiverId,kind:RouteKind)=>void;
  onWaypoint:(id:ReceiverId,point:Point)=>void;name:(id:ReceiverId)=>string;
  jersey:(id:ReceiverId)=>string;clock:string;clockRunning:boolean;downs:string;
- yards:string;timeouts:number;onTimeout:()=>void;onSnap:()=>void;
+ yards:string;timeouts:number;onTimeout:()=>void;onSnap:()=>void;onCheck:()=>void;
  tempo:Tempo;onTempo:(v:Tempo)=>void;rpoChoice:'give'|'pull';onRpoChoice:(v:'give'|'pull')=>void;
 };
 const targets=[7,8,9,10,1] as ReceiverId[];
@@ -72,7 +72,7 @@ export default function PlayCallScreen(p:Props){
  return <section className="pc-shell" aria-label="Offensive play calling">
    <header className="pc-head">
     <div className="pc-headline"><span><BookOpen size={16}/> {p.team} OFFENSE · GAME PLAN</span><h2>MAKE THE CALL.</h2><small>{p.downs} · {p.yards} · {p.clock} LEFT</small></div>
-    <div className="pc-head-actions"><span className="pc-clock"><Clock3 size={15}/>{p.clock} {p.clockRunning?'· RUNNING':'· STOPPED'}</span><button className="pc-snap-button" onClick={p.onSnap}><Play size={18} fill="currentColor"/> SNAP <ArrowRight size={18}/></button></div>
+    <div className="pc-head-actions"><span className="pc-clock"><Clock3 size={15}/>{p.clock} {p.clockRunning?'· RUNNING':'· STOPPED'}</span><button className="pc-check-button" onClick={p.onCheck}><Shield size={15}/> CHECK DEFENSE</button><button className="pc-snap-button" onClick={p.onSnap}><Play size={18} fill="currentColor"/> SNAP <ArrowRight size={18}/></button></div>
    </header>
    <div className="pc-families" role="tablist" aria-label="Choose offensive play family">
     {(['RUN','PASS','RPO','TRICK'] as Family[]).map(f=><button key={f} role="tab" aria-selected={p.family===f} className={p.family===f?'active':''} onClick={()=>{p.onFamily(f);setEditor(7);setDrawing(false);}}>
@@ -114,7 +114,8 @@ export default function PlayCallScreen(p:Props){
       {editingAllowed&&<div className="pc-option-split"><span>QB ROLLOUT</span><div>{(['none','left','right'] as const).map(v=><button key={v} className={(p.call.rollout??'none')===v?'active':''} onClick={()=>p.onCall({...p.call,rollout:v})}>{v.toUpperCase()}</button>)}</div></div>}
       <div className="pc-option-split"><span>TEMPO / CLOCK</span><div>{(['hurry','huddle','drain'] as Tempo[]).map(v=><button key={v} className={p.tempo===v?'active':''} onClick={()=>p.onTempo(v)}>{v==='hurry'?'NO HUDDLE':v==='drain'?'MILK':'HUDDLE'}</button>)}</div></div>
       <div className="pc-situation-warning">{p.scoreLead>=0?'PROTECT THE LEAD':'CHASING '+Math.abs(p.scoreLead)+' POINTS'} · {p.timeoutsLeft} TO LEFT</div>
-      <div className="pc-actions"><button disabled={!p.clockRunning||p.timeouts<1} onClick={p.onTimeout}><TimerReset size={15}/> TIMEOUT ({p.timeouts})</button><button onClick={p.onSnap} className="pc-primary"><Zap size={18}/> SNAP THE BALL <ArrowRight size={20}/></button></div>
+      <div className="pc-actions"><button disabled={!p.clockRunning||p.timeouts<1} onClick={p.onTimeout}><TimerReset size={15}/> TIMEOUT ({p.timeouts})</button><button onClick={p.onCheck} className="pc-check-secondary"><Shield size={16}/> WALK TO LINE / AUDIBLE</button>
+       <button onClick={p.onSnap} className="pc-primary"><Zap size={18}/> SNAP THE BALL <ArrowRight size={20}/></button></div>
     </aside>
    </div>
   </section>;
