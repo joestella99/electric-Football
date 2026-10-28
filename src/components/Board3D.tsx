@@ -22,7 +22,7 @@ type Props = {
   onDrawPoint:(point:Point)=>void; onSpatialResult:(result:Result)=>void;
   onAutoThrow:(receiver:ReceiverId)=>void;
   onLead:(point:Point)=>void; assistAim:boolean;
-  quality:'performance'|'balanced'|'high'; onFps:(fps:number)=>void;
+  quality:'performance'|'balanced'|'high'; onFps:(fps:number)=>void; offenseColor:string;opponentColor:string;
   onCoverage:(read:Record<number,number>)=>void;
   live: Live | null; motion: Motion | null; aim: Point; receiver: ReceiverId;
   onAim: (point: Point) => void; onThrow: (point: Point, id?: ReceiverId) => void;
