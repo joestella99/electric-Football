@@ -342,7 +342,7 @@ function Scene(props:Props){
       <BallTrail world={world}/>
       <CatchFlash world={world}/>
       {!props.buttonPassing&&passPlay(play)&&TARGETS.map(id=><SpatialBeacon key={id} world={world} id={id} selected={id===receiver} onAutoThrow={onAutoThrow} personnel={personnel}/>)}
-      <Target aim={aim} active={passPlay(play)&&world.phase==='live'}/>
+      <Target aim={aim} active={!props.buttonPassing&&passPlay(play)&&world.phase==='live'}/>
     </> : <>
       <Clock live={null} motion={motion} defense={defense} protection={call.protection} elapsed={elapsed} progress={progress} onTick={onTick} onSack={()=>{}} onDone={onDone}/>
       <InstancedPlayers world={previewWorld} active={false} motion={motion} progress={progress} selected={receiver} offenseColor={offenseColor} opponentColor={opponentColor}/>
