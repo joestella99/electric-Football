@@ -1,6 +1,7 @@
 import { type Defense, type GameState, type PlayId, type Result } from './drill.ts';
 import { DEFAULT_CALL, isEligible, protectionTime, routeStartingX, type TacticalCall } from './tactics.ts';
 import { type Point, type ReceiverId } from './throwing.ts';
+import { selectCoverage, defenderAlignment, coverageResponsibility, type CoverageId } from './coverage.ts';
 
 export type RouteKind = 'slant'|'out'|'in'|'go'|'post'|'corner'|'curl'|'drag'|'flat'|'wheel'|'custom';
 export type RouteSpec = { kind:RouteKind; points?:Point[] };
@@ -28,21 +29,29 @@ export const starterRoutes=(play:PlayId):RouteBook=>{
  const choices=byPlay[play]??byPlay.quick;
  return {7:{kind:choices[0]},8:{kind:choices[1]},9:{kind:choices[2]},10:{kind:choices[3]},1:{kind:choices[4]}};
 };
-export type Actor={id:number;side:'offense'|'defense';role:string;x:number;z:number;y:number;heading:number;number:number;targetId?:number};
+export type Actor={id:number;side:'offense'|'defense';role:string;x:number;z:number;y:number;heading:number;number:number;targetId?:number;vx?:number;vz?:number};
 export type Flight={target:Point;receiver:ReceiverId;from:Point;duration:number;elapsed:number;position:[number,number,number]};
 export type SpatialOutcome={kind:'catch'|'incomplete'|'breakup'|'interception'|'sack';receiver?:ReceiverId;yards:number;outOfBounds:boolean;elapsed:number;description:string;defenderId?:number};
 export type World={
- yard:number;defense:Defense;call:TacticalCall;play:PlayId;routes:RouteBook;actors:Actor[];
+ yard:number;defense:Defense;coverage:CoverageId;call:TacticalCall;play:PlayId;routes:RouteBook;actors:Actor[];
  t:number;flight:Flight|null;outcome:SpatialOutcome|null;phase:'live'|'flight'|'done';
 };
 const clamp=(x:number,a:number,b:number)=>Math.max(a,Math.min(b,x));
 const distance=(a:Point,b:Point)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
-const approach=(actor:Actor,to:Point,seconds:number,speed:number)=>{
+const approach=(actor:Actor,to:Point,seconds:number,speed:number,agility=6.2)=>{
  const dx=to[0]-actor.x,dz=to[1]-actor.z;
- const len=Math.hypot(dx,dz);if(len<.001)return;
- const d=Math.min(len,speed*seconds);
- actor.x+=dx/len*d;actor.z+=dz/len*d;
- actor.heading=Math.atan2(dx,dz);
+ const len=Math.hypot(dx,dz);
+ const oldX=actor.vx??0,oldZ=actor.vz??0;
+ // Acceleration and a small braking radius make cuts readable rather than instantaneous.
+ const desired=len>.001?Math.min(speed,len/Math.max(seconds,.18)):0;
+ const targetX=len>.001?dx/len*desired:0,targetZ=len>.001?dz/len*desired:0;
+ const blend=1-Math.exp(-agility*seconds);
+ actor.vx=oldX+(targetX-oldX)*blend;
+ actor.vz=oldZ+(targetZ-oldZ)*blend;
+ const move=Math.hypot(actor.vx,actor.vz);
+ if(move>.06)actor.heading=Math.atan2(actor.vx,actor.vz);
+ if(move*seconds>len&&len>0){actor.x=to[0];actor.z=to[1];actor.vx=0;actor.vz=0;}
+ else{actor.x+=actor.vx*seconds;actor.z+=actor.vz*seconds;}
 };
 const first=(id:number,formation:TacticalCall['formation']):Point=>{
  const x=routeStartingX(id,formation);
@@ -80,21 +89,21 @@ export function routeAt(id:ReceiverId,spec:RouteSpec,formation:TacticalCall['for
  }
  return verts[verts.length-1];
 }
-export function newWorld(yard:number,defense:Defense,play:PlayId,call:TacticalCall=DEFAULT_CALL,routes:RouteBook=starterRoutes(play)):World{
+export function newWorld(yard:number,defense:Defense,play:PlayId,call:TacticalCall=DEFAULT_CALL,routes:RouteBook=starterRoutes(play),driveSeed=0):World{
  const starts:Actor[]=[
   {id:0,side:'offense',role:'QB',x:0,z:yard-5,y:0,heading:0,number:12},
   {id:1,side:'offense',role:'RB',x:routeStartingX(1,call.formation),z:yard-8.7,y:0,heading:0,number:22},
   ...[-8,-4,0,4,8].map((x,i):Actor=>({id:i+2,side:'offense',role:'OL',x,z:yard-.9,y:0,heading:0,number:60+i})),
   ...([7,8,9,10] as ReceiverId[]).map((id,i):Actor=>({id,side:'offense',role:'WR',x:routeStartingX(id,call.formation),z:yard+(id===10?-3:id===9?-1:-2),y:0,heading:0,number:[81,14,87,11][i]}))
  ];
- const depth=defense==='SOFT ZONE'?18:11;
+ const coverage=selectCoverage(defense,driveSeed);
  const front=defense==='BLITZ'?2.1:2.8;
  const def:Actor[]=[
   ...[-8,-3,3,9].map((x,i):Actor=>({id:11+i,side:'defense',role:'DL',x,z:yard+front,y:0,heading:Math.PI,number:90+i})),
-  ...[-14,0,14].map((x,i):Actor=>({id:15+i,side:'defense',role:'LB',x,z:yard+(defense==='BLITZ'?4.5:7),y:0,heading:Math.PI,number:50+i})),
-  ...[-22,-8,8,22].map((x,i):Actor=>({id:18+i,side:'defense',role:'DB',x,z:yard+depth+(i%2)*3,y:0,heading:Math.PI,number:20+i,targetId:[7,10,9,8][i]}))
+  ...[15,16,17].map((id,i):Actor=>({id,side:'defense',role:'LB',x:defenderAlignment(id,coverage,yard)[0],z:defenderAlignment(id,coverage,yard)[1],y:0,heading:Math.PI,number:50+i})),
+  ...[18,19,20,21].map((id,i):Actor=>({id,side:'defense',role:'DB',x:defenderAlignment(id,coverage,yard)[0],z:defenderAlignment(id,coverage,yard)[1],y:0,heading:Math.PI,number:20+i,targetId:[7,10,9,8][i]}))
  ];
- return {yard,defense,call,play,routes,actors:[...starts,...def],t:0,flight:null,outcome:null,phase:'live'};
+ return {yard,defense,coverage,call,play,routes,actors:[...starts,...def],t:0,flight:null,outcome:null,phase:'live'};
 }
 export function actorPoint(world:World,id:number):Point{
  const actor=world.actors.find(a=>a.id===id);
@@ -102,53 +111,57 @@ export function actorPoint(world:World,id:number):Point{
  return [actor.x,actor.z];
 }
 export function closestDefender(world:World,point:Point){
- return [...world.actors.filter(a=>a.side==='defense')].sort((a,b)=>distance([a.x,a.z],point)-distance([b.x,b.z],point))[0];
+ let best=world.actors[11],bestDistance=Infinity;
+ for(let i=11;i<world.actors.length;i++){
+  const a=world.actors[i];if(a.side!=='defense')continue;
+  const d=(a.x-point[0])**2+(a.z-point[1])**2;
+  if(d<bestDistance){best=a;bestDistance=d;}
+ }
+ return best;
 }
 export function pocketDistance(world:World):number{
  const qb=actorPoint(world,0);return Math.min(...world.actors.filter(a=>a.role==='DL'||(world.defense==='BLITZ'&&a.role==='LB')).map(a=>distance([a.x,a.z],qb)));
 }
 function updateActors(w:World,dt:number){
- const defenders=w.actors.filter(a=>a.side==='defense');
- for(const a of w.actors){
-  if(a.role==='WR'||a.role==='RB'){
-   if(a.role==='RB'&&!isEligible(a.id,w.call)){
-    approach(a,[a.x*.5,w.yard+2],dt,6);continue;
+ const defenders=w.actors.slice(11);
+ const offense=w.actors.slice(0,11);
+ const ballTarget=w.phase==='flight'&&w.flight?w.flight.target:null;
+ const flightElapsed=w.flight?.elapsed??0;
+ // Update receivers first so corners can read the actual route stems.
+ for(const a of offense){
+   if(a.role==='WR'||a.role==='RB'){
+     if(a.role==='RB'&&!isEligible(a.id,w.call)){
+       approach(a,[a.x*.5,w.yard+1.4],dt,6.0);continue;
+     }
+     const id=a.id as ReceiverId;
+     const [x,dz]=routeAt(id,w.routes[id],w.call.formation,w.t);
+     const goal:Point=[x,clamp(w.yard+dz,1,99)];
+     const isCut=Math.abs(goal[0]-a.x)>2;
+     approach(a,goal,dt,id===1?7.0:id===9?8.3:9.3,isCut?4.3:8.0);
+   }else if(a.role==='OL'){
+     const rusher=defenders.find(d=>d.id===11+(a.id-2)%4);
+     const block:Point=rusher?[rusher.x,w.yard+1.65]:[a.x,w.yard+1.8];
+     approach(a,block,dt,3.5,9);
+   }else if(a.role==='QB'){
+     approach(a,[0,w.yard-5.7],dt,.6);
    }
-   const id=a.id as ReceiverId;
-   const [x,dz]=routeAt(id,w.routes[id],w.call.formation,w.t);
-   approach(a,[x,clamp(w.yard+dz,1,99)],dt, id===1?5.9:9.2);
-  } else if(a.role==='OL'){
-    // Each lineman engages a specific advancing rusher; protection changes pass-rush lanes.
-    const rusher=defenders.find(d=>d.id===11+(a.id-2)%4);
-    const block:Point=rusher?[rusher.x,w.yard+1.7]:[a.x,w.yard+2];
-    approach(a,block,dt,3.2);
-  } else if(a.role==='QB'){
-    approach(a,[0,w.yard-6],dt,.6);
-  } else if(a.role==='DL'){
-    const lineman=w.actors.find(o=>o.id===2+(a.id-11));
-    const guard=[lineman?.x??0,lineman?.z??w.yard] as Point;
-    const separation=distance([a.x,a.z],guard);
-    const rushSpeed=w.call.protection==='max'?1.5:w.call.protection==='slide'?2:2.6;
-    approach(a,[0,w.yard-5],dt,separation<3.3?rushSpeed:4.3);
-  } else if(a.role==='LB'){
-    if(w.defense==='BLITZ'&&a.id===16){
-      approach(a,[0,w.yard-5],dt,4.6);
-    }else{
-      const target=w.actors.find(o=>o.id===[10,1,9][a.id-15]);
-      const to:Point=target?[target.x,target.z+2]:[a.x,w.yard+10];
-      approach(a,to,dt,w.defense==='SOFT ZONE'?3.8:5.4);
-    }
-  } else if(a.role==='DB'){
-    const target=w.actors.find(o=>o.id===a.targetId);
-    if(!target)continue;
-    // Quarterbacks can exploit the inside/outside leverage while man defenders trail.
-    const zone=w.defense==='SOFT ZONE';
-    const desired:Point=zone?
-      [clamp(target.x*.68+(a.id%2?-4:4),-23,23),Math.max(w.yard+12,target.z+3.7)]:
-      [clamp(target.x+(a.id%2?1.1:-1.1),-24,24),target.z+(w.defense==='BLITZ'?.4:2.2)];
-    approach(a,desired,dt,zone?6.1:w.defense==='BLITZ'?7.1:6.65);
-  }
-  a.z=clamp(a.z,1,99);a.x=clamp(a.x,-25.5,25.5);
+ }
+ // A protection matchup changes how fast a pass rusher wins the edge.
+ for(const a of defenders.filter(d=>d.role==='DL')){
+   const protector=offense.find(o=>o.id===2+(a.id-11));
+   const gap=protector?Math.hypot(a.x-protector.x,a.z-protector.z):99;
+   const base=w.call.protection==='max'?1.55:w.call.protection==='slide'?2.05:2.75;
+   const rush=gap<2.7?base:4.7;
+   approach(a,[0,w.yard-5],dt,rush,5.8);
+ }
+ // These are zone responsibilities and man assignments, not random movement.
+ for(const a of defenders.filter(d=>d.role==='LB'||d.role==='DB')){
+   const rule=coverageResponsibility(a,w.coverage,w.yard,offense,flightElapsed,ballTarget);
+   approach(a,rule.point,dt,rule.speed,a.role==='DB'?6.5:5.6);
+ }
+ for(const a of w.actors){
+   a.x=clamp(a.x,-25.5,25.5);
+   a.z=clamp(a.z,1,99);
  }
 }
 export function throwBall(w:World,target:Point,receiver:ReceiverId):boolean{
