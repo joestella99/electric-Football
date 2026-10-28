@@ -1,6 +1,7 @@
 import {useMemo,useState} from 'react';
 import {ArrowRight,BookOpen,ChevronLeft,Flag,Search,Shield,Target,Trophy,X,Zap} from 'lucide-react';
 import {HISTORICAL_CHALLENGES,NFL_TEAMS,TEAM_BY_ID,STYLE_LABEL} from '../logic/nfl';
+import {historicalPersonnel} from '../logic/nflRoster';
 type Props={canClose:boolean;onClose:()=>void;onChallenge:(id:string)=>void;onExhibition:(team:string,opponent:string)=>void};
 const fmt=(seconds:number)=>Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');
 export default function Pregame({canClose,onClose,onChallenge,onExhibition}:Props){
@@ -11,6 +12,7 @@ export default function Pregame({canClose,onClose,onChallenge,onExhibition}:Prop
  const [query,setQuery]=useState('');
  const [choose,setChoose]=useState<'offense'|'defense'>('offense');
  const challenge=HISTORICAL_CHALLENGES.find(s=>s.id===selected)??HISTORICAL_CHALLENGES[0];
+ const eraRoster=historicalPersonnel(challenge.id);
  const visible=useMemo(()=>NFL_TEAMS.filter(t=>t.name.toLowerCase().includes(query.toLowerCase())||t.id.toLowerCase().includes(query.toLowerCase())),[query]);
  const own=TEAM_BY_ID[mode==='moments'?challenge.offense:team],opp=TEAM_BY_ID[mode==='moments'?challenge.opponent:opponent];
  const chooseTeam=(id:string)=>{if(choose==='offense'){setTeam(id);if(id===opponent)setOpponent(id==='DAL'?'PHI':'DAL');}else{setOpponent(id);if(id===team)setTeam(id==='PHI'?'DAL':'PHI');}};
@@ -66,6 +68,7 @@ export default function Pregame({canClose,onClose,onChallenge,onExhibition}:Prop
              <div><small>QTR</small><b>{mode==='moments'?challenge.quarter:'Q4'}</b></div>
            </div>
          </div>
+         {mode==='moments'&&eraRoster&&<div className="era-identity"><span>HISTORIC PERSONNEL</span><b>QB #{eraRoster.qb.number} {eraRoster.qb.last}</b><small>{[7,8,9,10,1].map(id=>eraRoster.skill[id as 7|8|9|10|1].last).join(' · ')}</small></div>}
          <div className="pregame-playbook-hint"><BookOpen size={19}/><div><b>{STYLE_LABEL[own.style]}</b><small>8 designed plays · editable routes · custom audibles · live coverage</small></div></div>
          <button className="pregame-start" onClick={start}><Target size={22}/>{mode==='moments'?'TAKE OVER THIS DRIVE':'START THE MATCHUP'}<ArrowRight size={21}/></button>
          <p className="pregame-disclaimer">Independent, unofficial football simulation. Real teams and historical starting situations are used for reference; subsequent play outcomes and team-style playbooks are original simulations. No team logos or licensed likenesses.</p>
