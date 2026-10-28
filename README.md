@@ -5,6 +5,29 @@ Inspired by classic electric tabletop football and the decision-making stakes of
 
 **Play:** https://joestella99.github.io/electric-Football/
 
+## V5 — Immersive Coach → Quarterback Overhaul
+
+**The entire interaction is replaced.** The V5 entrypoint is \`src/GameExperience.tsx\`, styled by \`src/experience.css\`. The previous UI remains in \`src/App.tsx\` as an archived reference, not the live game.
+
+### A complete play flow
+1. **Situation / Pregame:** Choose a real-era Super Bowl situation or select any two of the 32 NFL clubs.
+2. **Call the play:** An actual offensive playbook screen replaces the dashboard-style controls. Filter calls by Pass / Deep / Run and study original, plotted five-receiver route diagrams. Change the formation and protection and, optionally, assign individual routes or click points on the diagram to draw a custom five-waypoint route. See pre-snap reads and a standalone situation board.
+3. **Break the huddle:** The playbook closes and loads the 3D miniature tabletop. Player figurines and route previews show the called play. Special teams/timeout/clock management remain accessible.
+4. **Snap:** The experience switches to a dedicated QB interface for passes or a live carrier/pursuit view for runs.
+5. **Throw instantly:** Five large, labeled, status-aware receiver buttons are always visible during a pass. **Tap a button or press 1–5 to throw immediately.** There is no separate selection step, mouse targeting, manual reticle, or throw button. Live separation changes OPEN / WINDOW / COVERED status and player buttons become disabled as soon as the ball leaves the hand.
+6. **Bullet vs Touch:** Switch with Q/E or tap the mode controls. Fast flat bullets and slower arcing touch throws have separate simulated flight durations, arcs, and movement-based predicted catch points. They are real simulated choices, not UI labels.
+7. **Result and next call:** A clear field result and one “Call Next Play” action take you directly back to the coach's playbook. Completed and failed drives have retry and new-matchup actions.
+
+### Performance
+- The entire WebGL field is **unmounted during pre-snap play design**, avoiding GPU usage when browsing play cards and editing routes.
+- When live, GPU-instanced 22-player figures and a static shared field preserve the performance work from V2.1.
+- All gameplay remains in one viewport; phone layouts have compact receiver buttons and a scrollable playbook panel without scrolling the surrounding page.
+- Uses native keyboard focus, responsive touch controls and a hardware-quality switch.
+- The camera is lower and follows the football after the QB releases.
+
+### Testing
+Unit tests verify deterministic lead forecasting, all 32 team playbooks, historical scenarios, football field outcomes and **two physically distinct passing modes**. Still needs hands-on frame-time and accessibility/UX testing across devices; automated CI cannot substitute for visual gameplay testing.
+
 ## V4 — NFL Situations & Team Identity
 
 **Opening experience:** start from a cinematic pregame menu rather than an embedded dashboard. Pick **NFL Moments** (historically grounded scenarios) or **Pick Your Teams** (select any two of the 32 NFL franchises). Once started, the game remains in a single viewport; use **Change Matchup** between plays to return to the selection screen.
