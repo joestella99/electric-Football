@@ -132,11 +132,26 @@ function updateRunActors(w:World,dt:number){
  // A visible handoff develops before the carrier turns toward the called gap.
  const outside=w.play==='outside';
  const t=w.t;
- const x=outside?(w.call.formation==='trips'?20:-20):2.0;
- const z=t<.52?w.yard-3.7:w.yard+36;
- if(t<.52)approach(back,[1.6,w.yard-3.7],dt,10,10);
- else approach(back,[x,z],dt,outside?9.6:10.4,6.6);
- const qb=w.actors[0];approach(qb,[0,w.yard-6.2],dt,1);
+ const concept=w.call.concept??'';
+ const qb=w.actors[0];
+ const qbSneak=concept==='qbsneak';
+ const direct=concept==='directsnap';
+ const reverse=concept==='reverse';
+ const runner=qbSneak?qb:back;
+ const side=concept==='stretchright'||concept==='offtackleright'?1:
+   concept==='stretchleft'||concept==='offtackleleft'?-1:
+   w.call.formation==='trips'?1:-1;
+ const edge=reverse?-side:side;
+ const x=outside?edge*20:concept.includes('left')?-5:concept.includes('right')?5:2;
+ const z=t<(direct?0:qbSneak?.13:.52)?w.yard-3.7:w.yard+36;
+ if(qbSneak){
+   approach(qb,[x,w.yard+Math.min(t*12,25)],dt,10.5,9);
+   approach(back,[back.x*.6,w.yard-3],dt,5.5);
+ }else{
+   if(t<(direct?0:.52))approach(back,[reverse?-side*8:1.6,w.yard-3.7],dt,10,10);
+   else approach(back,[x,z],dt,outside?9.6:10.4,6.6);
+   approach(qb,[0,w.yard-6.2],dt,1);
+ }
  for(const line of w.actors.filter(a=>a.role==='OL')){
    const d=tacklers[(line.id-2)%4];
    approach(line,[d.x,w.yard+1.2],dt,3.8,8);
@@ -145,10 +160,10 @@ function updateRunActors(w:World,dt:number){
    if(d.role==='DL'){
      const guard=w.actors[2+(d.id-11)%5];
      const blocking=Math.hypot(guard.x-d.x,guard.z-d.z)<2.9;
-     approach(d,[back.x,back.z],dt,blocking?2.7:6.1,6.8);
+     approach(d,[runner.x,runner.z],dt,blocking?2.7:6.1,6.8);
    }else{
      const recognition=t>.48;
-     const goal:Point=recognition?[back.x,back.z]:defenderAlignment(d.id,w.coverage,w.yard);
+     const goal:Point=recognition?[runner.x,runner.z]:defenderAlignment(d.id,w.coverage,w.yard);
      approach(d,goal,dt,d.role==='DB'?8:6.8,5.8);
    }
  }
@@ -167,7 +182,8 @@ function updateActors(w:World,dt:number){
        approach(a,[a.x*.5,w.yard+1.4],dt,6.0);continue;
      }
      const id=a.id as ReceiverId;
-     const [x,dz]=routeAt(id,w.routes[id],w.call.formation,w.t);
+     const delay=w.call.concept==='fleaflicker'?.62:w.call.playAction?.32:0;
+     const [x,dz]=routeAt(id,w.routes[id],w.call.formation,Math.max(0,w.t-delay));
      const goal:Point=[x,clamp(w.yard+dz,1,99)];
      const isCut=Math.abs(goal[0]-a.x)>2;
      approach(a,goal,dt,id===1?7.0:id===9?8.3:9.3,isCut?4.3:8.0);
@@ -176,7 +192,9 @@ function updateActors(w:World,dt:number){
      const block:Point=rusher?[rusher.x,w.yard+1.65]:[a.x,w.yard+1.8];
      approach(a,block,dt,3.5,9);
    }else if(a.role==='QB'){
-     approach(a,[0,w.yard-5.7],dt,.6);
+     const rollout=w.call.rollout==='left'?-7:w.call.rollout==='right'?7:0;
+     const fake=w.call.playAction&&w.t<.55?-.9:0;
+     approach(a,[rollout,w.yard-5.7+fake],dt,rollout?6.8:1.2,6.6);
    }
  }
  // A protection matchup changes how fast a pass rusher wins the edge.
@@ -185,7 +203,7 @@ function updateActors(w:World,dt:number){
    const gap=protector?Math.hypot(a.x-protector.x,a.z-protector.z):99;
    const base=w.call.protection==='max'?1.55:w.call.protection==='slide'?2.05:2.75;
    const rush=gap<2.7?base:4.7;
-   approach(a,[0,w.yard-5],dt,rush,5.8);
+   approach(a,[offense[0].x,offense[0].z],dt,rush,5.8);
  }
  // These are zone responsibilities and man assignments, not random movement.
  for(const a of defenders.filter(d=>d.role==='LB'||d.role==='DB')){
@@ -199,10 +217,10 @@ function updateActors(w:World,dt:number){
 }
 export function throwBall(w:World,target:Point,receiver:ReceiverId,style:PassStyle='bullet'):boolean{
  if(w.phase!=='live'||!isEligible(receiver,w.call))return false;
- const start:Point=[0,w.yard-5];
+ const start:Point=actorPoint(w,0);
  const delta=distance(start,target);
  const duration=passDuration(delta,style);
- w.flight={target:[clamp(target[0],-25.5,25.5),clamp(target[1],1,99)],receiver,from:start,duration,elapsed:0,position:[0,3,w.yard-5],style};
+ w.flight={target:[clamp(target[0],-25.5,25.5),clamp(target[1],1,99)],receiver,from:start,duration,elapsed:0,position:[start[0],3,start[1]],style};
  w.phase='flight';
  return true;
 }
@@ -213,7 +231,7 @@ export function throwBall(w:World,target:Point,receiver:ReceiverId,style:PassSty
 export function predictLead(w:World,id:ReceiverId,style:PassStyle='bullet'):Point{
   let target=actorPoint(w,id);
   for(let iteration=0;iteration<2;iteration++){
-    const flightTime=passDuration(distance([0,w.yard-5],target),style);
+    const flightTime=passDuration(distance(actorPoint(w,0),target),style);
     const projection:World={
       ...w,t:w.t,phase:'live',flight:null,outcome:null,
       actors:w.actors.map(a=>({...a}))
@@ -258,7 +276,7 @@ export function stepWorld(w:World,delta:number):SpatialOutcome|null{
  w.t+=dt;
  updateActors(w,dt);
  if(w.phase==='live'&&(w.play==='inside'||w.play==='outside')){
-   const carrier=w.actors[1];
+   const carrier=w.actors[w.call.concept==='qbsneak'?0:1];
    const contact=w.actors.slice(11).some(a=>Math.hypot(a.x-carrier.x,a.z-carrier.z)<1.85);
    if((w.t>1.32&&contact)||w.t>=5.3||carrier.z>=99){
      const yards=Math.round(carrier.z-w.yard);
