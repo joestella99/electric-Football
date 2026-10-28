@@ -5,6 +5,18 @@ Inspired by classic electric tabletop football and the decision-making stakes of
 
 **Play:** https://joestella99.github.io/electric-Football/
 
+## V7 — Deliberate pre-snap quarterback flow and on-field controls
+
+The offensive play lifecycle now has **mandatory separate stages**:
+
+1. **Choose and design** in the Run/Pass/RPO/Trick playbook, including routes, formations, pass protection, and tempo.
+2. **SET PLAY** to leave the playbook and load the behind-the-QB field. No animation or snap begins.
+3. **Study the defense** at the line of scrimmage. The QB camera, formation, defenders and passing numbers are visible; hide/show the scouting panel, audible to a different concept, or return to the playbook.
+4. **SNAP** deliberately using the on-screen button or Space (only available while ready). The clock is never counting down in real-world seconds while a user is planning or inspecting the defensive formation. The play still charges the selected tempo cost on snap and two game seconds for audibles.
+5. During a **live pass**, the keys **1, 2, 3, 4, and 5** are painted above the five eligible players and correspond exactly to the large receiver buttons/keyboard controls. Actual jersey numbers remain separately visible. In maximum protection, a blocking RB does not show a throwing key. The overhead keys track player movement in both the 3D miniature scene and the fast 2D view.
+
+These changes do **not** alter the existing real-time route pursuit and ball-flight physics. They fix the accidental snap/insufficient pre-snap inspection problem, not the still-limited fidelity of real NFL blocking or catch animations.
+
 ## V6 — Strategic Madden Lite (adaptive coaching)
 
 The game is moving from a pass-target demonstration toward a football strategy game with **offense versus a reactive defensive coordinator**.
