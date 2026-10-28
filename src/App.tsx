@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowRight, ChevronDown, CircleHelp, Clock3, Crosshair, Eye, Flag, Fullscreen, Goal, Keyboard, RotateCcw, Shield, Target, TimerReset, Zap, Gauge, SlidersHorizontal, X, ScanEye, ClipboardList } from 'lucide-react';
+import { ArrowRight, ChevronDown, CircleHelp, Clock3, Crosshair, Eye, Flag, Fullscreen, Goal, Keyboard, RotateCcw, Shield, Target, TimerReset, Zap, Gauge, Volume2, VolumeX, SlidersHorizontal, X, ScanEye, ClipboardList } from 'lucide-react';
 import Board3D, { type Live, type Motion, type ThrowRequest } from './components/Board3D';
 import { SCENARIOS, PLAYS, fieldSpot, formatClock, initialGame, kickDistance, simulate, useTimeout, type GameState, type PlayId, type Result } from './logic/drill';
 import { RECEIVERS, passPlay, pressureLimit, type Point, type ReceiverId } from './logic/throwing';
 import { ROUTE_OPTIONS, starterRoutes, routeAt, type RouteKind, type RouteBook } from './logic/spatial';
 import { DEFAULT_CALL, FORMATIONS, PROTECTIONS, isEligible, presnapRead, coachingCue, type TacticalCall } from './logic/tactics';
 import { COVERAGES, selectCoverage, type CoverageId } from './logic/coverage';
+import { playCue } from './logic/audio';
 
 type View = 'sideline' | 'coach';
 type Feed = { id: number; label: string; clock: number; gain: number; grade: string };
@@ -33,6 +34,7 @@ function App() {
   const [drawing,setDrawing]=useState<ReceiverId|null>(null);
   const [coverage,setCoverage]=useState<Record<number,number>>({});
   const [fps,setFps]=useState<number|null>(null);
+  const [soundOn,setSoundOn]=useState(true);
   const [quality,setQuality]=useState<'performance'|'balanced'|'high'>(()=>typeof window!=='undefined'&&window.matchMedia('(max-width: 760px)').matches?'performance':'balanced');
   const [throwRequest,setThrowRequest]=useState<ThrowRequest|null>(null);
   const [routeEditor,setRouteEditor]=useState<ReceiverId>(7);
@@ -78,13 +80,16 @@ function App() {
   },[scenarioId]);
 
   const completePlay=useCallback((result:Result)=>{
+    const cue=result.description.startsWith('TOUCHDOWN')?'touchdown':result.turnover?'interception':(result.play==='inside'||result.play==='outside')?'run':result.description.includes('SACKED')?'sack':result.complete?'catch':'incomplete';
+    playCue(cue,soundOn);
     setGame(result.state);setThrowRequest(null);setCoverage({});setDrawing(null);
     setFeed(items=>[{id:++sequence.current,label:result.description,clock:result.state.seconds,gain:result.yards,grade:result.grade},...items].slice(0,8));
     setLast(result);setMotion(null);setLive(null);setElapsed(0);setAutoLead(true);
-  },[]);
+  },[soundOn]);
 
   const snap=useCallback(()=>{
     if(active||finished)return;
+    playCue('snap',soundOn);
     setLast(null);
     if(passPlay(play)||play==='inside'||play==='outside'){
       setElapsed(0);setAutoLead(true);setTacticsOpen(false);setDrawing(null);setAim(lead(receiver,2));
@@ -93,7 +98,7 @@ function App() {
       const result=simulate(game,play,'hurry',Math.random,call);
       setMotion({id:++sequence.current,result,startYard:game.yard});
     }
-  },[active,finished,play,receiver,game,call,routes]);
+  },[active,finished,play,receiver,game,call,routes,soundOn]);
 
   const lead=useCallback((id:ReceiverId,t:number):Point=>{
     const p=routeAt(id,routes[id],call.formation,t);
@@ -107,8 +112,9 @@ function App() {
     if(!live||!passPlay(live.play)||throwRequest)return;
     const selected=id??receiver;
     if(!isEligible(selected,call))return;
+    playCue('throw',soundOn);
     setThrowRequest({id:++sequence.current,point,receiver:selected,assisted});
-  },[live,throwRequest,receiver,call]);
+  },[live,throwRequest,receiver,call,soundOn]);
   const onTick=useCallback((seconds:number)=>setElapsed(seconds),[]);
   const chooseRoute=(kind:RouteKind)=>{
     if(active||finished)return;
@@ -200,6 +206,7 @@ function App() {
           {SCENARIOS.map(s=><option key={s.id} value={s.id}>{DRIVE_NAMES[s.id]}</option>)}
         </select><ChevronDown size={13}/></label>
         <button className="quality-toggle" onClick={()=>setQuality(q=>q==='performance'?'balanced':q==='balanced'?'high':'performance')} title="Switch between performance, balanced and high graphics settings" aria-label={'Graphics: '+quality+', '+(fps??'--')+' FPS'}><Gauge size={15}/><span>{quality.toUpperCase()} · {fps??'--'} FPS</span></button>
+        <button className="icon-button" aria-label={soundOn?'Mute game audio':'Enable game audio'} title={soundOn?'Mute sounds':'Enable sounds'} onClick={()=>setSoundOn(v=>!v)}>{soundOn?<Volume2 size={18}/>:<VolumeX size={18}/>}</button>
         <button className="icon-button" aria-label="How to play" title="How to play" onClick={()=>setHelp(true)}><CircleHelp size={19}/></button>
         <button className="icon-button fullscreen-icon" aria-label="Full screen" title="Full screen" onClick={fullscreen}><Fullscreen size={18}/></button>
       </div>
