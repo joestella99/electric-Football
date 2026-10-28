@@ -468,3 +468,23 @@
 .v6-coach-grade{padding:7px;gap:8px}.v6-grade-letter{min-height:45px;min-width:42px;width:42px;font-size:30px}
 .v6-coach-grade b{font-size:14px}.v6-coach-grade span{font-size:10px}.v6-next-read{font-size:8px}
 }
+
+.pc-check-button{display:flex;align-items:center;gap:6px;background:#304f40;color:#f4dfb9;border:1px solid #6e9277;padding:10px 13px;font:900 13px 'Barlow Condensed',sans-serif;white-space:nowrap}
+.pc-check-button:hover{background:#52725a}
+.pc-actions .pc-check-secondary{background:#395c45;border:1px solid #7f9b76;color:#ffe4b6;font-size:14px;min-height:36px}
+.v6-presnap{width:min(360px,39vw);padding:15px;top:82px;max-height:calc(100% - 95px);overflow-y:auto}
+.v6-presnap>small{display:block;color:#b8cdbb;font:500 11px/1.4 Outfit,sans-serif}
+.v6-audible-list{display:flex!important;flex-direction:column;gap:6px;border-top:1px solid #6b9377;padding-top:10px;margin-top:10px}
+.v6-audible-list>strong{font:900 13px 'Barlow Condensed',sans-serif;color:#f0c987;letter-spacing:.5px}
+.v6-audible-list>button{width:100%;display:flex;align-items:center;justify-content:space-between;gap:5px;background:#284d3c;border:1px solid #6e9378;color:#f5e9cb;padding:7px 10px;text-align:left}
+.v6-audible-list>button:hover{background:#47735b}
+.v6-audible-list>button>span{font:800 10px 'DM Mono',monospace;color:#eac48a}
+.v6-audible-list>button>b{font:900 15px 'Barlow Condensed',sans-serif}
+.v6-audible-list>small{font:500 10px Outfit,sans-serif;color:#aec6b2}
+@media(max-width:780px){
+.pc-check-button{padding:6px;font-size:0}.pc-check-button svg{width:18px;height:18px}
+.v6-presnap{width:min(280px,65vw);top:63px;max-height:calc(100% - 67px);padding:9px}
+.v6-presnap>small{font-size:9px}
+.v6-audible-list>button{padding:5px 7px}.v6-audible-list>button>b{font-size:12px}
+.v6-audible-list>small{font-size:8px}
+}
