@@ -1,6 +1,6 @@
 import {useMemo,useState} from 'react';
 import {ArrowRight,BookOpen,ChevronLeft,Flag,Search,Shield,Target,Trophy,X,Zap} from 'lucide-react';
-import {HISTORICAL_CHALLENGES,NFL_TEAMS,TEAM_BY_ID,STYLE_LABEL,type HistoricalChallenge} from '../logic/nfl';
+import {HISTORICAL_CHALLENGES,NFL_TEAMS,TEAM_BY_ID,STYLE_LABEL} from '../logic/nfl';
 type Props={canClose:boolean;onClose:()=>void;onChallenge:(id:string)=>void;onExhibition:(team:string,opponent:string)=>void};
 const fmt=(seconds:number)=>Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');
 export default function Pregame({canClose,onClose,onChallenge,onExhibition}:Props){
